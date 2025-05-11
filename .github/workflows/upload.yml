@@ -41,7 +41,7 @@ jobs:
 
     - name: ✅ main.py 실행
       run: |
-        python main.py
+        python scripts/main.py
 
     - name: ✅ 로그 확인
       if: always()
