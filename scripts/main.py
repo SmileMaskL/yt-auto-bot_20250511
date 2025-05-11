@@ -1,33 +1,144 @@
 # 전체 자동화 파이썬 코드
-import logging
-from content_generator import get_trending_keywords, generate_script
-from youtube_upload import (
-    generate_tts_audio,
-    create_thumbnail,
-    create_video,
-    get_authenticated_service,
-    upload_video,
-    post_comment
-)
-from notifier import send_notification
+import os
+import openai
+import time
+import json
+import requests
+import subprocess
+from datetime import datetime
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+# 로그 파일 경로 설정
+LOG_FILE = "automation.log"
+
+def log(message):
+    timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"{timestamp} {message}\n")
+    print(f"{timestamp} {message}")
+
+# OpenAI API 키 순환 사용
+def get_valid_openai_response(prompt):
+    api_keys = os.getenv("OPENAI_API_KEYS", "").split(",")
+    for key in api_keys:
+        key = key.strip()
+        openai.api_key = key
+        try:
+            log(f"🔑 OpenAI 키 시도: {key[:6]}...")
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}],
+                timeout=20
+            )
+            log("✅ OpenAI 응답 성공")
+            return response['choices'][0]['message']['content']
+        except Exception as e:
+            log(f"❌ OpenAI 키 실패: {str(e)}")
+            continue
+    raise Exception("❌ 모든 OpenAI API 키 실패")
+
+# ElevenLabs를 통한 음성 생성
+def generate_voice(text, output_path):
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{os.getenv('ELEVENLABS_VOICE_ID')}"
+    headers = {
+        "xi-api-key": os.getenv("ELEVENLABS_KEY"),
+        "Content-Type": "application/json"
+    }
+    data = {
+        "text": text,
+        "voice_settings": {
+            "stability": 0.75,
+            "similarity_boost": 0.75
+        }
+    }
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code == 200:
+        with open(output_path, "wb") as f:
+            f.write(response.content)
+        log(f"✅ 음성 파일 저장 완료: {output_path}")
+    else:
+        log(f"❌ 음성 생성 실패: {response.text}")
+        raise Exception("음성 생성 실패")
+
+# 자막 생성 (예시: 단순 텍스트를 SRT 형식으로 변환)
+def generate_subtitles(text, output_path):
+    lines = text.split('. ')
+    with open(output_path, "w", encoding="utf-8") as f:
+        for i, line in enumerate(lines, 1):
+            start_time = f"00:00:{(i-1)*5:02d},000"
+            end_time = f"00:00:{i*5:02d},000"
+            f.write(f"{i}\n{start_time} --> {end_time}\n{line.strip()}\n\n")
+    log(f"✅ 자막 파일 저장 완료: {output_path}")
+
+# ffmpeg를 통한 영상 생성
+def create_video(audio_path, subtitle_path, output_path):
+    # 예시: 단순한 배경 이미지와 오디오를 합쳐 영상 생성
+    background_image = "background.jpg"  # 사전에 준비된 배경 이미지
+    if not os.path.exists(background_image):
+        # 배경 이미지가 없을 경우, 단색 배경 생성
+        subprocess.run([
+            "ffmpeg", "-f", "lavfi", "-i", "color=c=blue:s=1280x720:d=10",
+            background_image
+        ])
+    subprocess.run([
+        "ffmpeg", "-y", "-loop", "1", "-i", background_image, "-i", audio_path,
+        "-vf", f"subtitles={subtitle_path}",
+        "-c:v", "libx264", "-t", "10", "-pix_fmt", "yuv420p", output_path
+    ])
+    log(f"✅ 영상 파일 생성 완료: {output_path}")
+
+# YouTube 업로드
+def upload_to_youtube(video_path, title, description):
+    creds = Credentials(
+        None,
+        refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN"),
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=os.getenv("GOOGLE_CLIENT_ID"),
+        client_secret=os.getenv("GOOGLE_CLIENT_SECRET")
+    )
+    youtube = build("youtube", "v3", credentials=creds)
+    request_body = {
+        "snippet": {
+            "title": title,
+            "description": description,
+            "tags": ["AI", "Automation", "YouTube"],
+            "categoryId": "22"
+        },
+        "status": {
+            "privacyStatus": "public"
+        }
+    }
+    media = MediaFileUpload(video_path, resumable=True)
+    request = youtube.videos().insert(
+        part="snippet,status",
+        body=request_body,
+        media_body=media
+    )
+    response = request.execute()
+    log(f"✅ YouTube 업로드 완료: https://youtu.be/{response['id']}")
 
 def main():
+    log("🚀 자동화 시작")
     try:
-        keywords = get_trending_keywords()
-        for keyword in keywords:
-            script = generate_script(keyword)
-            audio_file = generate_tts_audio(script)
-            thumbnail_file = create_thumbnail(keyword)
-            video_file = create_video(script, audio_file, thumbnail_file)
-            youtube = get_authenticated_service()
-            video_id = upload_video(youtube, video_file, keyword, script, thumbnail_file)
-            post_comment(youtube, video_id, f"{keyword}에 대한 자세한 내용을 확인해보세요!")
-            video_url = f"https://youtu.be/{video_id}"
-            logging.info(f"업로드 완료: {video_url}")
-            send_notification(f"✅ 영상 업로드 성공: {video_url}")
+        prompt = "오늘의 대한민국 트렌드를 5가지 요약해줘."
+        script = get_valid_openai_response(prompt)
+        log(f"📜 생성된 스크립트: {script}")
+
+        audio_file = "output.mp3"
+        generate_voice(script, audio_file)
+
+        subtitle_file = "subtitles.srt"
+        generate_subtitles(script, subtitle_file)
+
+        video_file = "output.mp4"
+        create_video(audio_file, subtitle_file, video_file)
+
+        upload_to_youtube(video_file, "AI 자동 생성 영상", "이 영상은 AI를 통해 자동으로 생성되었습니다.")
     except Exception as e:
-        logging.error(f"전체 프로세스 오류: {e}")
-        send_notification(f"🚨 오류 발생: {e}")
+        log(f"❌ 자동화 실패: {str(e)}")
+    log("🏁 자동화 종료")
 
 if __name__ == "__main__":
     main()
