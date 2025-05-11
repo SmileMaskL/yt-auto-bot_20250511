@@ -29,20 +29,24 @@ def cleanup_tempfiles(*files):
 
 def main():
     try:
-        keywords = get_trending_keywords()[:3]  # 상위 3개 키워드
+        # 상위 3개 트렌드 키워드 가져오기
+        keywords = get_trending_keywords()[:3]
         youtube = get_authenticated_service()
         pf = ProfanityFilter()  # ✅ 필터 객체 생성
         
         for idx, keyword in enumerate(keywords, 1):
             logging.info(f"처리 중 ({idx}/{len(keywords)}): {keyword}")
             
+            # 스크립트 생성 및 필터링
             script = generate_script(keyword)
             script = pf.censor(script)  # ✅ 욕설 필터링 적용
             
+            # 오디오, 썸네일, 비디오 생성
             audio_file = generate_tts_audio(script)
             thumbnail_file = create_thumbnail(keyword)
             video_file = create_video(script, audio_file, thumbnail_file)
             
+            # 비디오 업로드
             video_id = upload_video(
                 youtube,
                 video_file,
@@ -51,9 +55,11 @@ def main():
                 thumbnail_file=thumbnail_file
             )
             
+            # 댓글 작성
             post_comment(youtube, video_id, f"{keyword} 관련 추가 정보는 댓글을 참조하세요!")
             cleanup_tempfiles(audio_file, thumbnail_file, video_file)
         
+        # 업로드 완료 알림
         send_notification(f"🎉 {len(keywords)}개 영상 업로드 완료!")
     
     except Exception as e:
