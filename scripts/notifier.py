@@ -1,13 +1,14 @@
 # 에러 알림 기능 (이메일/Slack)
+import os
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
-def send_error_notification(error_message):
+def send_notification(message):
     client = WebClient(token=os.environ['SLACK_API_TOKEN'])
     try:
         response = client.chat_postMessage(
             channel='C05Q8JQEL4U',
-            text=f"❗ Error in YouTube Automation: {error_message}"
+            text=message
         )
     except SlackApiError as e:
-        print(f"Error sending message to Slack: {e.response['error']}")
+        print(f"Slack 알림 오류: {e.response['error']}")
