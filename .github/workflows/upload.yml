@@ -1,32 +1,30 @@
-name: YouTube Automation
+name: YouTube Auto Upload
 
 on:
   schedule:
-    - cron: "0 9 * * *"  # 매일 오전 9시 실행 (UTC 기준)
-  workflow_dispatch:     # 수동 실행도 가능
+    - cron: "0 9 * * *" # 매일 오전 9시 (UTC)
+  workflow_dispatch:      # 수동 실행도 가능
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: 📦 저장소 불러오기
+        uses: actions/checkout@v3
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.10
+      - name: 🐍 Python 설정
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
 
-    - name: Install dependencies
-      run: |
-        pip install -r requirements.txt
+      - name: 📥 필요한 패키지 설치
+        run: pip install -r requirements.txt
 
-    - name: Run YouTube Auto Upload
-      env:
-        OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
-        ELEVENLABS_KEYS: ${{ secrets.ELEVENLABS_KEYS }}
-        GOOGLE_CLIENT_SECRET_JSON: ${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}
-        GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-      run: |
-        python scripts/main.py
+      - name: ▶️ 자동화 실행
+        env:
+          OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
+          ELEVENLABS_KEYS: ${{ secrets.ELEVENLABS_KEYS }}
+          GOOGLE_CLIENT_SECRET_JSON: ${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python scripts/main.py
