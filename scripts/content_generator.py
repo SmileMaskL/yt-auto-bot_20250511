@@ -7,10 +7,8 @@ from time import sleep
 from pytrends.request import TrendReq
 import openai
 
-# 로깅 설정
 logging.basicConfig(level=logging.INFO)
 
-# OpenAI API 키 로테이션 설정
 class OpenAIKeyManager:
     def __init__(self):
         keys = json.loads(os.environ.get("OPENAI_API_KEYS", "[]"))
