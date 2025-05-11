@@ -9,3 +9,5 @@ imageio-ffmpeg
 Pillow
 elevenlabs
 slack_sdk
+requests
+ffmpeg-python
