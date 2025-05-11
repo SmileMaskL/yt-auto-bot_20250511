@@ -12,6 +12,9 @@ from moviepy.editor import TextClip, AudioFileClip, ImageClip, CompositeVideoCli
 os.environ["IMAGEIO_FFMPEG_EXE"] = "/usr/bin/ffmpeg"
 logging.basicConfig(level=logging.INFO)
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+FONT_PATH = os.path.join(BASE_DIR, 'fonts', 'NotoSansCJK-Regular.otf')
+
 def generate_tts_audio(script):
     from elevenlabs import generate, save
     audio_file = tempfile.mktemp(suffix='.mp3')
@@ -29,8 +32,7 @@ def create_thumbnail(keyword):
     try:
         img = Image.new('RGB', (1280, 720), color=(73, 109, 137))
         d = ImageDraw.Draw(img)
-        font_path = os.path.join('fonts', 'NotoSansCJK-Regular.otf')
-        font = ImageFont.truetype(font_path, 60)
+        font = ImageFont.truetype(FONT_PATH, 60)
         d.text((100, 300), keyword, fill=(255,255,0), font=font)
         img.save(thumbnail_file)
     except Exception as e:
@@ -42,16 +44,17 @@ def create_video(script, audio_file, thumbnail_file):
     video_file = tempfile.mktemp(suffix='.mp4')
     try:
         audio_clip = AudioFileClip(audio_file)
+        image_clip = ImageClip(thumbnail_file).set_duration(audio_clip.duration)
+
         text_clip = TextClip(
             txt=script,
             fontsize=40,
             color='white',
-            font='Noto-Sans-CJK',
+            font=FONT_PATH,  # 직접 폰트 경로 사용
             size=(1200, None),
             method='caption'
         ).set_position('center').set_duration(audio_clip.duration)
 
-        image_clip = ImageClip(thumbnail_file).set_duration(audio_clip.duration)
         video = CompositeVideoClip([image_clip, text_clip]).set_audio(audio_clip)
         video.write_videofile(
             video_file,
@@ -67,11 +70,12 @@ def create_video(script, audio_file, thumbnail_file):
     return video_file
 
 def get_authenticated_service():
-    if not os.path.exists('token.json'):
-        raise FileNotFoundError("token.json 파일이 존재하지 않습니다.")
+    token_path = os.path.join(BASE_DIR, 'token.json')
+    if not os.path.exists(token_path):
+        raise FileNotFoundError(f"token.json 파일이 존재하지 않습니다: {token_path}")
 
     credentials = Credentials.from_authorized_user_file(
-        'token.json',
+        token_path,
         scopes=['https://www.googleapis.com/auth/youtube.upload']
     )
     if credentials.expired:
