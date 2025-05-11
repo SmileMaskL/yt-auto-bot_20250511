@@ -1,43 +1,24 @@
+# 전체 자동화 파이썬 코드
 import os
 import json
-from youtube_uploader import generate_and_upload_video
-from notifier import send_error_notification
+from content_generator import get_trending_keywords, generate_script
+from youtube_uploader import generate_tts_audio, create_thumbnail, create_video, get_authenticated_service, upload_video, post_comment
+from notifier import send_notification
 
-def check_secrets():
+def main():
     try:
-        # 1. OPENAI 키 확인
-        openai_keys = json.loads(os.environ.get("OPENAI_API_KEYS", "[]"))
-        if not openai_keys or not all(k.startswith("sk-") for k in openai_keys):
-            raise ValueError("❌ OPENAI_API_KEYS 값이 비어있거나 형식이 잘못됨")
-        print("✅ OPENAI_API_KEYS 로딩 성공")
-
-        # 2. ELEVENLABS 키 확인
-        elevenlabs_keys = json.loads(os.environ.get("ELEVENLABS_KEYS", "[]"))
-        if not elevenlabs_keys or not all(k for k in elevenlabs_keys):
-            raise ValueError("❌ ELEVENLABS_KEYS 값이 비어있음")
-        print("✅ ELEVENLABS_KEYS 로딩 성공")
-
-        # 3. Google Refresh Token 확인
-        google_refresh_token = os.environ.get("GOOGLE_REFRESH_TOKEN")
-        if not google_refresh_token or len(google_refresh_token) < 30:
-            raise ValueError("❌ GOOGLE_REFRESH_TOKEN 값이 비정상적입니다")
-        print("✅ GOOGLE_REFRESH_TOKEN 로딩 성공")
-
-        # 4. Google Client Secret JSON 확인
-        google_client_secret = json.loads(os.environ.get("GOOGLE_CLIENT_SECRET_JSON", "{}"))
-        if not google_client_secret.get("installed"):
-            raise ValueError("❌ GOOGLE_CLIENT_SECRET_JSON 내용이 비정상적입니다")
-        print("✅ GOOGLE_CLIENT_SECRET_JSON 로딩 성공")
-
-        print("\n🎉 모든 GitHub Secrets가 정상적으로 로딩되었습니다.\n")
-        
-        # 전체 자동화 실행
-        generate_and_upload_video()
-
+        keywords = get_trending_keywords()
+        for keyword in keywords:
+            script = generate_script(keyword)
+            audio_file = generate_tts_audio(script)
+            thumbnail_file = create_thumbnail(keyword)
+            video_file = create_video(script, audio_file, thumbnail_file)
+            youtube = get_authenticated_service()
+            video_id = upload_video(youtube, video_file, f"{keyword}에 대한 영상", script, thumbnail_file)
+            post_comment(youtube, video_id, f"{keyword}에 대한 자세한 정보를 확인하세요!")
+        send_notification("✅ YouTube 자동화 작업이 성공적으로 완료되었습니다.")
     except Exception as e:
-        print(f"🚨 환경 변수 오류: {e}")
-        send_error_notification(str(e))
-        raise
+        send_notification(f"❌ YouTube 자동화 작업 중 오류 발생: {e}")
 
 if __name__ == "__main__":
-    check_secrets()
+    main()
