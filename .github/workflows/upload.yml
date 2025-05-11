@@ -1,60 +1,36 @@
 # GitHub Actions 자동화 설정
-name: YouTube Auto Upload
+name: Upload YouTube Video
 
 on:
-  schedule:
-    - cron: "0 0 * * *"
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *'  # 한국 시간 오전 11시 (UTC 기준 2시)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. 저장소 체크아웃
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2. Python 3.10 환경 설정
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      # 3. 시스템 의존성 설치 (apt-get)
-      - name: Install System Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ffmpeg \
-            fonts-dejavu-core  # 필수 폰트 패키지
-
-      # 4. Python 패키지 설치 (pip)
       - name: Install Python Dependencies
         run: |
-          pip cache purge
+          pip cache purge || true
           python -m pip install --upgrade pip
-          pip install --force-reinstall "moviepy==2.1.2"  # 버전 강제 고정
-          pip install --no-cache-dir -r requirements.txt  # 캐시 비활성화 설치
+          pip install --no-cache-dir --default-timeout=100 -r requirements.txt
 
-      # 5. 환경 검증
-      - name: Validate Environment
+      - name: Run Main Automation Script
         run: |
-          python -c "import moviepy; print(f'[검증] MoviePy 버전: {moviepy.__version__}')"
-          which ffmpeg  # FFmpeg 경로 확인
+          python secure_main.py
 
-      # 6. 설정 파일 작성
-      - name: Write Config Files
+      - name: Upload Automation Log (on failure)
+        if: failure()
         run: |
-          echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
-          echo "${{ secrets.GOOGLE_REFRESH_TOKEN }}" > token.json
-          sudo chmod 600 client_secret.json token.json  # 보안 권한 설정
-
-      # 7. 메인 스크립트 실행
-      - name: Run Main Script
-        env:
-          OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
-          ELEVENLABS_KEYS: ${{ secrets.ELEVENLABS_KEYS }}
-          SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
-        run: |
-          python scripts/main.py
+          echo "----- automation.log -----"
+          cat automation.log || echo "로그 파일 없음"
