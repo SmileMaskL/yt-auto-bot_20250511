@@ -1,4 +1,5 @@
 # 전체 자동화 파이썬 코드
+# 전체 자동화 파이썬 코드
 import os
 import openai
 import time
@@ -9,6 +10,7 @@ from datetime import datetime
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
+from scripts.notifier import send_notification  # ✅ 알림 모듈 추가
 
 # 로그 파일 경로 설정
 LOG_FILE = "automation.log"
@@ -62,7 +64,7 @@ def generate_voice(text, output_path):
         log(f"❌ 음성 생성 실패: {response.text}")
         raise Exception("음성 생성 실패")
 
-# 자막 생성 (예시: 단순 텍스트를 SRT 형식으로 변환)
+# 자막 생성
 def generate_subtitles(text, output_path):
     lines = text.split('. ')
     with open(output_path, "w", encoding="utf-8") as f:
@@ -72,12 +74,10 @@ def generate_subtitles(text, output_path):
             f.write(f"{i}\n{start_time} --> {end_time}\n{line.strip()}\n\n")
     log(f"✅ 자막 파일 저장 완료: {output_path}")
 
-# ffmpeg를 통한 영상 생성
+# 영상 생성
 def create_video(audio_path, subtitle_path, output_path):
-    # 예시: 단순한 배경 이미지와 오디오를 합쳐 영상 생성
-    background_image = "background.jpg"  # 사전에 준비된 배경 이미지
+    background_image = "background.jpg"
     if not os.path.exists(background_image):
-        # 배경 이미지가 없을 경우, 단색 배경 생성
         subprocess.run([
             "ffmpeg", "-f", "lavfi", "-i", "color=c=blue:s=1280x720:d=10",
             background_image
@@ -119,6 +119,7 @@ def upload_to_youtube(video_path, title, description):
     response = request.execute()
     log(f"✅ YouTube 업로드 완료: https://youtu.be/{response['id']}")
 
+# 메인 실행 함수
 def main():
     log("🚀 자동화 시작")
     try:
@@ -138,6 +139,7 @@ def main():
         upload_to_youtube(video_file, "AI 자동 생성 영상", "이 영상은 AI를 통해 자동으로 생성되었습니다.")
     except Exception as e:
         log(f"❌ 자동화 실패: {str(e)}")
+        send_notification(f"자동화 실패: {str(e)}")  # ✅ 알림 전송
     log("🏁 자동화 종료")
 
 if __name__ == "__main__":
