@@ -4,7 +4,7 @@ name: 📤 YouTube Upload Automation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *' # 매일 오전 11시 (KST 기준)
+    - cron: '0 2 * * *' # 매일 오전 11시 (KST)
 
 jobs:
   build:
@@ -14,14 +14,14 @@ jobs:
     - name: ✅ 리포지토리 체크아웃
       uses: actions/checkout@v4
 
-    - name: ✅ Python 3.10 설치
+    - name: ✅ Python 설치
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
-    - name: ✅ 의존성 설치 (캐시 제거 + 안정적 설치)
+    - name: ✅ 의존성 설치
       run: |
-        if [ -d "$HOME/.cache/pip" ]; then rm -rf "$HOME/.cache/pip"; fi
+        rm -rf "$HOME/.cache/pip"
         python -m pip install --upgrade pip
         pip install --no-cache-dir -r requirements.txt
 
@@ -41,15 +41,15 @@ jobs:
 
     - name: ✅ main.py 실행
       run: |
-        python secure_main.py
+        python main.py
 
-    - name: ✅ 로그 확인 (자동 생성된 로그 파일 출력)
+    - name: ✅ 로그 확인
       if: always()
       run: |
-        echo "===== LOG OUTPUT ====="
-        cat automation.log || echo "No log file found."
+        echo "===== LOG ====="
+        cat automation.log || echo "로그 없음"
 
-    - name: 🧹 캐시 및 임시파일 정리
+    - name: 🧹 임시파일 정리
       if: always()
       run: |
         rm -rf __pycache__ *.mp3 *.mp4 *.aac *.wav *.srt *.tmp *.json *.log || true
