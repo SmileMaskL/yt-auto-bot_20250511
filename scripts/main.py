@@ -1,38 +1,62 @@
 # 전체 자동화 파이썬 코드
 import os
 import json
+import logging
+from datetime import datetime
 from content_generator import get_trending_keywords, generate_script
 from youtube_uploader import generate_tts_audio, create_thumbnail, create_video, get_authenticated_service, upload_video, post_comment
 from notifier import send_notification
-import logging
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
+# 고급 로깅 설정
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("automation.log"),
+        logging.StreamHandler()
+    ]
+)
+
+def cleanup_tempfiles(*files):
+    """안전한 임시 파일 삭제"""
+    for f in files:
+        try:
+            if os.path.exists(f):
+                os.remove(f)
+                logging.info(f"삭제 완료: {f}")
+        except Exception as e:
+            logging.warning(f"파일 삭제 실패 {f}: {e}")
 
 def main():
     try:
-        keywords = get_trending_keywords()
-        for keyword in keywords:
+        keywords = get_trending_keywords()[:3]  # 상위 3개 키워드만 처리
+        youtube = get_authenticated_service()
+        
+        for idx, keyword in enumerate(keywords, 1):
+            logging.info(f"처리 중 ({idx}/{len(keywords)}): {keyword}")
+            
             script = generate_script(keyword)
-            logging.info(f"스크립트 생성 완료: {script[:30]}...")  # 스크립트 일부 출력
-
             audio_file = generate_tts_audio(script)
             thumbnail_file = create_thumbnail(keyword)
             video_file = create_video(script, audio_file, thumbnail_file)
-
-            youtube = get_authenticated_service()
-            video_id = upload_video(youtube, video_file, f"{keyword}에 대한 영상", script, thumbnail_file)
-            post_comment(youtube, video_id, f"{keyword}에 대한 자세한 정보를 확인하세요!")
-
-            # 임시 파일 삭제
-            os.remove(audio_file)
-            os.remove(thumbnail_file)
-            os.remove(video_file)
-
-        send_notification("✅ YouTube 자동화 작업이 성공적으로 완료되었습니다.")
+            
+            video_id = upload_video(
+                youtube,
+                video_file,
+                title=f"{keyword} 분석 {datetime.today().strftime('%Y-%m-%d')}",
+                description=f"AI 생성 콘텐츠 - {script[:300]}...",
+                thumbnail_file=thumbnail_file
+            )
+            
+            post_comment(youtube, video_id, f"{keyword} 관련 추가 정보는 댓글을 참조하세요!")
+            cleanup_tempfiles(audio_file, thumbnail_file, video_file)
+            
+        send_notification(f"🎉 {len(keywords)}개 영상 업로드 완료!")
+        
     except Exception as e:
-        logging.error(f"자동화 작업 중 오류 발생: {e}")
-        send_notification(f"❌ YouTube 자동화 작업 중 오류 발생: {e}")
+        logging.critical(f"치명적 오류: {str(e)}", exc_info=True)
+        send_notification(f"🔥 시스템 장애 발생: {str(e)[:200]}")
+        raise  # 워크플로우 실패 표시
 
 if __name__ == "__main__":
     main()
