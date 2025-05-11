@@ -1,12 +1,16 @@
 # 에러 알림 기능 (이메일/Slack)
-# 에러 알림 기능 (Slack)
 import os
 import logging
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 
 def send_notification(message):
-    client = WebClient(token=os.environ.get('SLACK_API_TOKEN'))
+    token = os.environ.get('SLACK_API_TOKEN')
+    if not token:
+        logging.warning("SLACK_API_TOKEN 환경변수가 설정되지 않았습니다.")
+        return
+
+    client = WebClient(token=token)
     try:
         response = client.chat_postMessage(
             channel='C05Q8JQEL4U',
