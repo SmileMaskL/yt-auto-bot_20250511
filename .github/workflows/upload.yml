@@ -4,7 +4,7 @@ name: 📤 YouTube Upload Automation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *' # 매일 오전 11시 (KST)
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     - name: ✅ 리포지토리 체크아웃
       uses: actions/checkout@v4
 
-    - name: ✅ Python 설치
+    - name: ✅ Python 3.10 설치
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
@@ -32,7 +32,7 @@ jobs:
 
     - name: ✅ 환경 변수 설정
       run: |
-        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_1 }}" >> $GITHUB_ENV
+        echo "OPENAI_API_KEYS=${{ secrets.OPENAI_API_KEYS }}" >> $GITHUB_ENV
         echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
         echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
         echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
@@ -46,10 +46,18 @@ jobs:
     - name: ✅ 로그 확인
       if: always()
       run: |
-        echo "===== LOG ====="
-        cat automation.log || echo "로그 없음"
+        echo "===== 로그 출력 ====="
+        cat automation.log || echo "로그 파일이 존재하지 않습니다."
 
-    - name: 🧹 임시파일 정리
+    - name: 📦 오래된 로그 압축 및 보관
       if: always()
       run: |
-        rm -rf __pycache__ *.mp3 *.mp4 *.aac *.wav *.srt *.tmp *.json *.log || true
+        mkdir -p logs
+        find . -maxdepth 1 -name "*.log" -mtime +6 -print | while read file; do
+          zip -j "logs/$(basename "$file" .log)_$(date +%Y%m%d).zip" "$file" && rm "$file"
+        done
+
+    - name: 🧹 임시 파일 정리
+      if: always()
+      run: |
+        rm -rf __pycache__ *.mp3 *.mp4 *.aac *.wav *.srt *.tmp *.json || true
