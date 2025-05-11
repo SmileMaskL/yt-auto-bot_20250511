@@ -1,43 +1,55 @@
 # GitHub Actions 자동화 설정
-name: Upload YouTube Video
+name: 📤 YouTube Upload Automation
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 (KST)
+    - cron: '0 2 * * *' # 매일 오전 11시 (KST 기준)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: ✅ 저장소 체크아웃
-        uses: actions/checkout@v4
+    - name: ✅ 리포지토리 체크아웃
+      uses: actions/checkout@v4
 
-      - name: ✅ Python 설정
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
+    - name: ✅ Python 3.10 설치
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
 
-      - name: ✅ 의존성 설치
-        run: |
-          pip cache purge || true
-          python -m pip install --upgrade pip
-          pip install --no-cache-dir -r requirements.txt
-          
-      - name: ✅ main.py 실행
-        env:
-          OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-          ELEVENLABS_KEY: ${{ secrets.ELEVENLABS_KEY }}
-          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
-        run: |
-          python scripts/main.py
+    - name: ✅ 의존성 설치 (캐시 제거 + 안정적 설치)
+      run: |
+        if [ -d "$HOME/.cache/pip" ]; then rm -rf "$HOME/.cache/pip"; fi
+        python -m pip install --upgrade pip
+        pip install --no-cache-dir -r requirements.txt
 
-      - name: ⚠️ 실패 시 로그 출력
-        if: failure()
-        run: |
-          echo "----- automation.log -----"
-          cat automation.log || echo "로그 파일 없음"
+    - name: ✅ ffmpeg 설치
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+
+    - name: ✅ 환경 변수 설정
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_1 }}" >> $GITHUB_ENV
+        echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
+        echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
+        echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
+
+    - name: ✅ main.py 실행
+      run: |
+        python secure_main.py
+
+    - name: ✅ 로그 확인 (자동 생성된 로그 파일 출력)
+      if: always()
+      run: |
+        echo "===== LOG OUTPUT ====="
+        cat automation.log || echo "No log file found."
+
+    - name: 🧹 캐시 및 임시파일 정리
+      if: always()
+      run: |
+        rm -rf __pycache__ *.mp3 *.mp4 *.aac *.wav *.srt *.tmp *.json *.log || true
