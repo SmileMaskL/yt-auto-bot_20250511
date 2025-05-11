@@ -1,6 +1,8 @@
 import os
 import openai
 import requests
+from moviepy.video.io.VideoFileClip import VideoFileClip
+from moviepy.video.compositing.concatenate import concatenate_videoclips
 from moviepy.editor import TextClip, concatenate_videoclips
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
