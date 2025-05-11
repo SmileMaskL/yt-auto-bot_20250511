@@ -142,3 +142,9 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+if os.path.exists(LOG_FILE):
+    with open(LOG_FILE, "r", encoding="utf-8") as f:
+        print("------ Automation Log Start ------")
+        print(f.read())
+        print("------ Automation Log End ------")
