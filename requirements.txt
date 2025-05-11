@@ -10,4 +10,4 @@ imageio
 imageio-ffmpeg
 numpy
 tqdm
-profanity-filter>=2.0
+profanityfilter
