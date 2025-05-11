@@ -1,0 +1,41 @@
+name: Auto YouTube Upload
+
+on:
+  workflow_dispatch:  # 수동 실행 (또는 schedule 사용 가능)
+  schedule:
+    - cron: '0 0 * * *'  # 매일 00:00 UTC 실행 (한국 시간 오전 9시)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Create settings.json
+        run: |
+          mkdir -p config
+          echo '{
+            "openai_keys": ["${{ secrets.OPENAI_API_KEY_1 }}", "${{ secrets.OPENAI_API_KEY_2 }}"],
+            "elevenlabs_keys": ["${{ secrets.ELEVENLABS_KEY_1 }}"],
+            "elevenlabs_voice_id": "${{ secrets.ELEVENLABS_VOICE_ID }}"
+          }' > config/settings.json
+
+      - name: Decode client_secret.json
+        run: |
+          echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" | base64 -d > config/client_secret.json
+
+      - name: Run automation
+        env:
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+        run: python scripts/main.py
