@@ -1,40 +1,56 @@
+# YouTube 업로드 관련 기능
 import os
-import openai
+import json
+import random
+from moviepy.editor import TextClip, AudioFileClip, ImageClip, CompositeVideoClip
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
-from moviepy.editor import TextClip, concatenate_videoclips
-from datetime import datetime
 from google.auth.transport.requests import Request
+from PIL import Image, ImageDraw, ImageFont
+import requests
+from io import BytesIO
 
-def generate_video_from_script(script):
-    # 동영상 생성 과정 예시 (자막, 이미지, 음성 등을 합성)
-    video_clip = TextClip(script, fontsize=70, color='white').set_duration(10)
-    video = concatenate_videoclips([video_clip])
-    video_path = "output.mp4"
-    video.write_videofile(video_path, codec='libx264')
-    return video_path
+def get_elevenlabs_api_key():
+    keys = json.loads(os.environ.get("ELEVENLABS_KEYS", "[]"))
+    return random.choice(keys)
 
-def upload_to_youtube(video_path, title, description):
-    # Google API 인증 및 YouTube 업로드
-    youtube = build('youtube', 'v3', credentials=get_google_credentials())
-    
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {
-                "title": title,
-                "description": description,
-                "tags": ["automated", "content"],
-            },
-            "status": {
-                "privacyStatus": "public"
-            }
-        },
-        media_body=video_path
-    )
-    request.execute()
+def generate_tts_audio(script, filename="output.mp3"):
+    api_key = get_elevenlabs_api_key()
+    url = "https://api.elevenlabs.io/v1/text-to-speech"
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json"
+    }
+    data = {
+        "text": script,
+        "voice_settings": {
+            "stability": 0.75,
+            "similarity_boost": 0.75
+        }
+    }
+    response = requests.post(url, headers=headers, json=data)
+    with open(filename, "wb") as f:
+        f.write(response.content)
+    return filename
 
-def get_google_credentials():
+def create_thumbnail(keyword, filename="thumbnail.jpg"):
+    img = Image.new('RGB', (1280, 720), color=(73, 109, 137))
+    draw = ImageDraw.Draw(img)
+    font = ImageFont.truetype("arial.ttf", 60)
+    draw.text((100, 300), keyword, fill=(255, 255, 0), font=font)
+    img.save(filename)
+    return filename
+
+def create_video(script, audio_file, thumbnail_file, output_file="output.mp4"):
+    audio = AudioFileClip(audio_file)
+    image = ImageClip(thumbnail_file).set_duration(audio.duration)
+    text = TextClip(script, fontsize=24, color='white').set_duration(audio.duration)
+    video = CompositeVideoClip([image, text.set_position('bottom')])
+    video = video.set_audio(audio)
+    video.write_videofile(output_file, fps=24)
+    return output_file
+
+def get_authenticated_service():
     creds = None
     if os.path.exists('token.json'):
         creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/youtube.upload'])
@@ -47,26 +63,47 @@ def get_google_credentials():
             creds = flow.run_local_server(port=0)
         with open('token.json', 'w') as token:
             token.write(creds.to_json())
-    return creds
+    return build('youtube', 'v3', credentials=creds)
 
-def generate_and_upload_video():
-    try:
-        # 1. OpenAI API로 스크립트 생성
-        openai.api_key = os.environ.get("OPENAI_API_KEYS")
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt="Generate a script for a trending topic video",
-            max_tokens=300
-        )
-        script = response.choices[0].text.strip()
+def upload_video(youtube, video_file, title, description, thumbnail_file):
+    request_body = {
+        'snippet': {
+            'title': title,
+            'description': description,
+            'tags': ['자동화', '트렌드', '유튜브']
+        },
+        'status': {
+            'privacyStatus': 'public'
+        }
+    }
+    media = MediaFileUpload(video_file, resumable=True)
+    response = youtube.videos().insert(
+        part='snippet,status',
+        body=request_body,
+        media_body=media
+    ).execute()
+    video_id = response.get('id')
 
-        # 2. 동영상 생성
-        video_path = generate_video_from_script(script)
+    # 썸네일 업로드
+    youtube.thumbnails().set(
+        videoId=video_id,
+        media_body=thumbnail_file
+    ).execute()
 
-        # 3. 동영상 업로드
-        upload_to_youtube(video_path, "Trending Topic Video", script)
+    return video_id
 
-    except Exception as e:
-        print(f"🚨 영상 생성 및 업로드 실패: {e}")
-        send_error_notification(str(e))
-        raise
+def post_comment(youtube, video_id, comment_text):
+    request = youtube.commentThreads().insert(
+        part="snippet",
+        body={
+            "snippet": {
+                "videoId": video_id,
+                "topLevelComment": {
+                    "snippet": {
+                        "textOriginal": comment_text
+                    }
+                }
+            }
+        }
+    )
+    request.execute()
