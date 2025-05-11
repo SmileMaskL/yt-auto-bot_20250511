@@ -6,6 +6,7 @@ from datetime import datetime
 from content_generator import get_trending_keywords, generate_script
 from youtube_uploader import generate_tts_audio, create_thumbnail, create_video, get_authenticated_service, upload_video, post_comment
 from notifier import send_notification
+from profanityfilter import ProfanityFilter  # ✅ 욕설 필터 추가
 
 # 고급 로깅 설정
 logging.basicConfig(
@@ -18,7 +19,6 @@ logging.basicConfig(
 )
 
 def cleanup_tempfiles(*files):
-    """안전한 임시 파일 삭제"""
     for f in files:
         try:
             if os.path.exists(f):
@@ -29,13 +29,16 @@ def cleanup_tempfiles(*files):
 
 def main():
     try:
-        keywords = get_trending_keywords()[:3]  # 상위 3개 키워드만 처리
+        keywords = get_trending_keywords()[:3]  # 상위 3개 키워드
         youtube = get_authenticated_service()
+        pf = ProfanityFilter()  # ✅ 필터 객체 생성
         
         for idx, keyword in enumerate(keywords, 1):
             logging.info(f"처리 중 ({idx}/{len(keywords)}): {keyword}")
             
             script = generate_script(keyword)
+            script = pf.censor(script)  # ✅ 욕설 필터링 적용
+            
             audio_file = generate_tts_audio(script)
             thumbnail_file = create_thumbnail(keyword)
             video_file = create_video(script, audio_file, thumbnail_file)
@@ -50,13 +53,13 @@ def main():
             
             post_comment(youtube, video_id, f"{keyword} 관련 추가 정보는 댓글을 참조하세요!")
             cleanup_tempfiles(audio_file, thumbnail_file, video_file)
-            
-        send_notification(f"🎉 {len(keywords)}개 영상 업로드 완료!")
         
+        send_notification(f"🎉 {len(keywords)}개 영상 업로드 완료!")
+    
     except Exception as e:
         logging.critical(f"치명적 오류: {str(e)}", exc_info=True)
         send_notification(f"🔥 시스템 장애 발생: {str(e)[:200]}")
-        raise  # 워크플로우 실패 표시
+        raise
 
 if __name__ == "__main__":
     main()
