@@ -6,7 +6,7 @@ def send_error_notification(error_message):
     client = WebClient(token=os.environ['SLACK_API_TOKEN'])
     try:
         response = client.chat_postMessage(
-            channel='#your-channel-id',
+            channel='C05Q8JQEL4U',
             text=f"❗ Error in YouTube Automation: {error_message}"
         )
     except SlackApiError as e:
