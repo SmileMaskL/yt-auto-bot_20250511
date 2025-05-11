@@ -3,6 +3,7 @@ import os
 import json
 import random
 from moviepy.editor import TextClip, AudioFileClip, ImageClip, CompositeVideoClip
+from googleapiclient.http import MediaFileUpload
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
