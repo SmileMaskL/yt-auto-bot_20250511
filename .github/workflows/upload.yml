@@ -3,7 +3,7 @@ name: YouTube Auto Upload
 
 on:
   schedule:
-    - cron: "0 0 * * *"  # 매일 00:00 UTC에 실행
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 jobs:
@@ -19,12 +19,21 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Install Dependencies
+      - name: Install System Dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg  # ffmpeg 설치
-          pip install --upgrade --force-reinstall moviepy  # 강제 재설치
-          pip install -r requirements.txt  # 나머지 패키지 설치
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python Dependencies
+        run: |
+          pip cache purge  # 캐시 완전 삭제
+          pip install --upgrade pip
+          pip install --force-reinstall moviepy==2.1.2  # 강제 재설치
+          pip install -r requirements.txt
+
+      - name: Debug Python Path  # 추가된 단계
+        run: |
+          python -c "import moviepy; print(moviepy.__file__)"
 
       - name: Write client_secret.json
         run: echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > client_secret.json
@@ -37,4 +46,6 @@ jobs:
           OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
           ELEVENLABS_KEYS: ${{ secrets.ELEVENLABS_KEYS }}
           SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
-        run: python scripts/main.py
+        run: |
+          python -c "import os; os.environ['IMAGEIO_FFMPEG_EXE'] = '/usr/bin/ffmpeg'"  # FFmpeg 경로 강제 지정
+          python scripts/main.py
