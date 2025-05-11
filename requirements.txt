@@ -1,6 +1,10 @@
+# 필요한 라이브러리 명시
 openai
 requests
-moviepy==1.0.3
+moviepy
 google-api-python-client
 google-auth-oauthlib
 pillow
+slack_sdk
+pytrends
+elevenlabs
