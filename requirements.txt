@@ -1,5 +1,5 @@
 # 필요한 라이브러리 명시
-moviepy
+moviepy==2.1.2  # 버전 명시적 고정
 openai
 requests
 google-api-python-client
