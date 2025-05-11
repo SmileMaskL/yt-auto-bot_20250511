@@ -1,11 +1,13 @@
 # 필요한 라이브러리 명시
-moviepy==2.1.2  # 버전 강제 지정
-openai>=1.0
-requests>=2.31
-google-api-python-client>=2.0
-google-auth-oauthlib>=1.0
-pillow>=10.0  # moviepy 2.1.2 호환 버전
-slack_sdk>=3.0
-pytrends>=5.0
-elevenlabs>=0.2.3  # API 호환성 보장
-numpy>=1.25.0  # 최신 버전 충돌 방지
+openai
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+moviepy==2.1.2
+requests
+imageio
+imageio-ffmpeg
+numpy
+tqdm
+profanity-filter>=2.0
