@@ -1,10 +1,10 @@
 # 필요한 라이브러리 명시
-moviepy==2.1.2  # 버전 명시적 고정
-openai
-requests
-google-api-python-client
-google-auth-oauthlib
-pillow
-slack_sdk
-pytrends
-elevenlabs
+moviepy==2.1.2  # 버전 강제 지정
+openai>=1.0
+requests>=2.31
+google-api-python-client>=2.0
+google-auth-oauthlib>=1.0
+pillow>=10.0
+slack_sdk>=3.0
+pytrends>=5.0
+elevenlabs>=0.2.3  # API 호환성 보장
