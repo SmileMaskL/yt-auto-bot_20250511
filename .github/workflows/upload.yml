@@ -23,7 +23,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg  # ffmpeg 설치
-          pip install moviepy  # moviepy 직접 설치
+          pip install --upgrade --force-reinstall moviepy  # 강제 재설치
           pip install -r requirements.txt  # 나머지 패키지 설치
 
       - name: Write client_secret.json
