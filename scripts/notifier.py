@@ -7,15 +7,16 @@ from slack_sdk.errors import SlackApiError
 
 def send_notification(message: str):
     token = os.environ.get('SLACK_API_TOKEN')
-    channel = os.environ.get('SLACK_CHANNEL')  # ex. "#general"
-
+    channel = os.environ.get('SLACK_CHANNEL')
+    
     if not token or not channel:
-        logging.warning("Slack 알림 설정이 누락됨.")
+        logging.warning("Slack 알림 토큰 또는 채널이 설정되지 않았습니다.")
         return
-
+    
     client = WebClient(token=token)
+    
     try:
-        response = client.chat_postMessage(channel=channel, text=message)
-        logging.info(f"Slack 알림 전송 완료: {response['ts']}")
+        client.chat_postMessage(channel=channel, text=message)
+        logging.info("✅ Slack 알림 전송 성공")
     except SlackApiError as e:
-        logging.error(f"Slack 전송 실패: {e.response['error']}")
+        logging.error(f"❌ Slack 알림 실패: {e.response['error']}")
