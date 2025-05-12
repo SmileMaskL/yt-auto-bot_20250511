@@ -1,11 +1,11 @@
 # 전체 자동화 파이썬 코드
-# 전체 자동화 파이썬 코드
 import os
 import openai
 import time
 import json
 import requests
 import subprocess
+from scripts.notifier import send_notification
 from datetime import datetime
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
