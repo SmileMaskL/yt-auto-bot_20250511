@@ -23,7 +23,7 @@ def log(message):
 
 # OpenAI API 키 순환 사용
 def get_valid_openai_response(prompt):
-    api_keys = os.getenv("OPENAI_API_KEYS", "").split(",")
+    api_keys = os.getenv("OPENAI_API_KEYS", "[]"))
     for key in api_keys:
         key = key.strip()
         openai.api_key = key
