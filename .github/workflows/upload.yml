@@ -4,7 +4,7 @@ name: 📤 YouTube Upload Automation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 KST
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
 
 jobs:
   build:
@@ -41,17 +41,17 @@ jobs:
         echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
         echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
 
-    - name: ✅ main.py 실행
+    - name: ✅ 자동화 스크립트 실행
       run: |
         PYTHONPATH=${{ github.workspace }} python scripts/main.py
 
-    - name: ✅ 로그 확인
+    - name: ✅ 로그 출력
       if: always()
       run: |
-        echo "===== 로그 출력 ====="
-        cat automation.log || echo "로그 파일이 존재하지 않습니다."
+        echo "===== 로그 내용 ====="
+        cat automation.log || echo "로그 파일이 없습니다."
 
-    - name: 📦 오래된 로그 압축 및 보관
+    - name: 📦 오래된 로그 압축
       if: always()
       run: |
         mkdir -p logs
