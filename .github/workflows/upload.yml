@@ -1,11 +1,10 @@
 # GitHub Actions 자동화 설정
-# GitHub Actions 자동화 설정
 name: 📤 YouTube Upload Automation
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST
 
 jobs:
   build:
@@ -40,7 +39,7 @@ jobs:
         echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
         echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
 
-    - name: ✅ main.py 실행 (PYTHONPATH 설정 포함)
+    - name: ✅ main.py 실행
       run: |
         PYTHONPATH=${{ github.workspace }} python scripts/main.py
 
@@ -55,7 +54,7 @@ jobs:
       run: |
         mkdir -p logs
         find . -maxdepth 1 -name "*.log" -mtime +6 -print | while read file; do
-          zip -j "logs/$(basename "$file" .log)_$(date +%Y%m%d).zip" "$file" && rm "$file"
+          zip -j "logs/$(basename "$file" .log)_$(date +%Y%m%d%H%M).zip" "$file" && rm "$file"
         done
 
     - name: 🧹 임시 파일 정리
