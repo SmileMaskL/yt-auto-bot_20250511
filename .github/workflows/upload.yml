@@ -4,11 +4,21 @@ name: 📤 YouTube Upload Automation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
+    - cron: '0 2 * * *'  # 매일 오전 11시 KST
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    env:  # 환경 변수 선언
+      OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
+      ELEVENLABS_KEY: ${{ secrets.ELEVENLABS_KEY }}
+      ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+      SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
 
     steps:
     - name: ✅ 리포지토리 체크아웃
@@ -21,7 +31,6 @@ jobs:
 
     - name: ✅ 의존성 설치
       run: |
-        rm -rf "$HOME/.cache/pip"
         python -m pip install --upgrade pip
         pip install --no-cache-dir -r requirements.txt
 
@@ -29,17 +38,6 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y ffmpeg
-
-    - name: ✅ 환경 변수 설정
-      run: |
-        echo "OPENAI_API_KEYS=${{ secrets.OPENAI_API_KEYS }}" >> $GITHUB_ENV
-        echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
-        echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
-        echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
-        echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
-        echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
 
     - name: ✅ 자동화 스크립트 실행
       run: |
