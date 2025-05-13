@@ -30,8 +30,12 @@ def get_valid_openai_response(prompt):
     try:
         # 환경변수에서 OPENAI_API_KEYS Secret 로드 (JSON 배열 형식)
         raw_keys = os.getenv("OPENAI_API_KEYS", "[]")
-        api_keys = json.loads(raw_keys)
-
+        try:
+            api_keys = json.loads(raw_keys)  # JSON 파싱
+        except json.JSONDecodeError:
+            log("❌ OPENAI_API_KEYS JSON 파싱 실패")
+            raise ValueError("❌ OPENAI_API_KEYS 환경변수가 잘못된 형식입니다.")
+        
         if not api_keys:
             raise ValueError("OPENAI_API_KEYS 환경변수가 비어있습니다.")
         
@@ -51,9 +55,9 @@ def get_valid_openai_response(prompt):
         except Exception as e:
             log(f"❌ OpenAI 요청 실패: {str(e)}")
             raise
-    except json.JSONDecodeError:
-        log("❌ OPENAI_API_KEYS JSON 파싱 실패")
-        raise Exception("❌ OPENAI_API_KEYS JSON 파싱 실패")
+    except Exception as e:
+        log(f"❌ 오류 발생: {str(e)}")
+        raise
 
 def generate_voice(text, output_path):
     url = f"https://api.elevenlabs.io/v1/text-to-speech/{os.getenv('ELEVENLABS_VOICE_ID')}"
@@ -112,9 +116,9 @@ def generate_subtitles(text, output_path, total_duration):
 def create_video(audio_path, subtitle_path, output_path, duration):
     background_image = "background.jpg"
     if not os.path.exists(background_image):
-        subprocess.run([
-            "ffmpeg", "-f", "lavfi", "-i",
-            f"color=c=blue:s=1280x720:d={duration}",
+        subprocess.run([ 
+            "ffmpeg", "-f", "lavfi", "-i", 
+            f"color=c=blue:s=1280x720:d={duration}", 
             background_image
         ], check=True)
 
