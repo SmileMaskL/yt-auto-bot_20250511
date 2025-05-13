@@ -4,13 +4,19 @@ name: 📤 YouTube Upload Automation
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
+    - cron: '0 */6 * * *'  # 6시간 간격 실행
 
 jobs:
   build:
+    timeout-minutes: 45
     runs-on: ubuntu-latest
 
     steps:
+    - name: 🕒 타임존 설정
+      run: |
+        sudo timedatectl set-timezone Asia/Seoul
+        echo "현재 시간: $(date +'%Y-%m-%d %H:%M:%S %Z')"
+
     - name: ✅ 리포지토리 체크아웃
       uses: actions/checkout@v4
 
@@ -19,18 +25,22 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: ✅ 의존성 설치
+    - name: 🔒 보안 키 검증
       run: |
-        rm -rf "$HOME/.cache/pip"
+        echo "===== API 키 사전 검증 ====="
+        python -c "import base64,json,os;keys=json.loads(base64.b64decode(os.getenv('OPENAI_API_KEYS_BASE64')).decode());print(f'🔑 로드된 OpenAI 키 수: {len(keys)}')"
+
+    - name: 📦 의존성 설치
+      run: |
         python -m pip install --upgrade pip
         pip install --no-cache-dir -r requirements.txt
 
-    - name: ✅ ffmpeg 설치
+    - name: 🛠️ 미디어 도구 설치
       run: |
         sudo apt-get update
-        sudo apt-get install -y ffmpeg
+        sudo apt-get install -y ffmpeg libfontconfig1
 
-    - name: ✅ 환경 변수 설정
+    - name: ⚙️ 환경 변수 설정
       run: |
         echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
         echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
@@ -41,25 +51,22 @@ jobs:
         echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
         echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
 
-    - name: ✅ 자동화 스크립트 실행
+    - name: ▶️ 메인 실행
       run: |
         PYTHONPATH=${{ github.workspace }} python scripts/main.py
 
-    - name: ✅ 로그 출력
+    - name: 📊 실행 로그
       if: always()
       run: |
-        echo "===== 로그 내용 ====="
-        cat automation.log || echo "로그 파일이 없습니다."
+        echo "===== 시스템 진단 리포트 ====="
+        echo "최근 오류:"
+        grep "❌" automation.log | tail -n 5 || true
+        echo "\n키 사용 현황:"
+        grep "🔑" automation.log | tail -n 3 || true
 
-    - name: 📦 오래된 로그 압축
+    - name: 🗄️ 로그 관리
       if: always()
       run: |
         mkdir -p logs
-        find . -maxdepth 1 -name "*.log" -mtime +6 -print | while read file; do
-          zip -j "logs/$(basename "$file" .log)_$(date +%Y%m%d%H%M).zip" "$file" && rm "$file"
-        done
-
-    - name: 🧹 임시 파일 정리
-      if: always()
-      run: |
-        rm -rf __pycache__ *.mp3 *.mp4 *.aac *.wav *.srt *.tmp *.json || true
+        find . -name "*.log" -mtime +6 -exec zip -j "logs/archive_$(date +%Y%m%d).zip" {} +
+        find . -name "*.log" -mtime +6 -delete
