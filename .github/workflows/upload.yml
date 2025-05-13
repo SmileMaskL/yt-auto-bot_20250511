@@ -1,8 +1,8 @@
 # GitHub Actions 자동화 설정
-name: 📤 YouTube Upload Automation
+name: YouTube Upload Automation
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # 수동 실행
   schedule:
     - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
 
