@@ -1,72 +1,45 @@
 # GitHub Actions 자동화 설정
-name: 📤 YouTube Upload Automation
+name: 🤖 YouTube Video Automation
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'  # 6시간 간격 실행
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
-  build:
-    timeout-minutes: 45
+  upload-video:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 🕒 타임존 설정
-      run: |
-        sudo timedatectl set-timezone Asia/Seoul
-        echo "현재 시간: $(date +'%Y-%m-%d %H:%M:%S %Z')"
+      - name: 🔄 Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: ✅ 리포지토리 체크아웃
-      uses: actions/checkout@v4
+      - name: ✅ 환경 변수 설정
+        run: |
+          echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> $GITHUB_ENV
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> $GITHUB_ENV
+          echo "YOUTUBE_REFRESH_TOKEN=${{ secrets.YOUTUBE_REFRESH_TOKEN }}" >> $GITHUB_ENV
 
-    - name: ✅ Python 3.10 설치
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: ✅ API 키 사전 검증
+        run: |
+          echo "===== API 키 사전 검증 ====="
+          if [ -z "${{ secrets.OPENAI_API_KEYS_BASE64 }}" ]; then
+            echo "❌ OPENAI_API_KEYS_BASE64 시크릿이 설정되지 않았습니다."
+            exit 1
+          fi
 
-    - name: 🔒 보안 키 검증
-      run: |
-        echo "===== API 키 사전 검증 ====="
-        python -c "import base64,json,os;keys=json.loads(base64.b64decode(os.getenv('OPENAI_API_KEYS_BASE64')).decode());print(f'🔑 로드된 OpenAI 키 수: {len(keys)}')"
+          python -c "import os, base64, json
+decoded = base64.b64decode(os.environ['OPENAI_API_KEYS_BASE64']).decode('utf-8')
+keys = json.loads(decoded)
+assert isinstance(keys, list) and keys, '❌ 유효한 키 리스트가 아닙니다.'
+print(f'✅ 총 {len(keys)}개의 API 키가 로드되었습니다.')"
 
-    - name: 📦 의존성 설치
-      run: |
-        python -m pip install --upgrade pip
-        pip install --no-cache-dir -r requirements.txt
+      - name: 🛠️ Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: 🛠️ 미디어 도구 설치
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg libfontconfig1
-
-    - name: ⚙️ 환경 변수 설정
-      run: |
-        echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
-        echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
-        echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
-        echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
-        echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
-        echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
-
-    - name: ▶️ 메인 실행
-      run: |
-        PYTHONPATH=${{ github.workspace }} python scripts/main.py
-
-    - name: 📊 실행 로그
-      if: always()
-      run: |
-        echo "===== 시스템 진단 리포트 ====="
-        echo "최근 오류:"
-        grep "❌" automation.log | tail -n 5 || true
-        echo "\n키 사용 현황:"
-        grep "🔑" automation.log | tail -n 3 || true
-
-    - name: 🗄️ 로그 관리
-      if: always()
-      run: |
-        mkdir -p logs
-        find . -name "*.log" -mtime +6 -exec zip -j "logs/archive_$(date +%Y%m%d).zip" {} +
-        find . -name "*.log" -mtime +6 -delete
+      - name: 🚀 Run Main Script
+        run: python scripts/main.py
