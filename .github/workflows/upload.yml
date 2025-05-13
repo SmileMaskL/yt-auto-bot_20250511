@@ -1,4 +1,5 @@
 # GitHub Actions 자동화 설정
+# GitHub Actions 자동화 설정
 name: 📤 YouTube Upload Automation
 
 on:
@@ -32,7 +33,7 @@ jobs:
 
     - name: ✅ 환경 변수 설정
       run: |
-        echo "OPENAI_API_KEYS=${{ secrets.OPENAI_API_KEYS }}" >> $GITHUB_ENV
+        echo "OPENAI_API_KEYS=$(echo '${{ secrets.OPENAI_API_KEYS_BASE64 }}' | base64 -d)" >> $GITHUB_ENV
         echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
         echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
         echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
