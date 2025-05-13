@@ -1,5 +1,4 @@
 # 전체 자동화 파이썬 코드
-# 전체 자동화 파이썬 코드
 import os
 import openai
 import json
