@@ -5,7 +5,7 @@ import os
 import logging
 from time import sleep
 from pytrends.request import TrendReq
-import openai
+from openai import OpenAI  # ✅ 새로운 모듈 import 방식
 
 logging.basicConfig(level=logging.INFO)
 
@@ -40,12 +40,12 @@ def get_trending_keywords():
 
 def generate_script(keyword):
     prompt = f"{keyword}에 대한 유튜브 영상 스크립트를 작성해줘."
+    client = OpenAI(api_key=key_manager.get_key())  # ✅ 클라이언트 생성 방식 변경
     for _ in range(len(key_manager.keys)):
-        openai.api_key = key_manager.get_key()
         try:
-            response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=prompt,
+            response = client.chat.completions.create(  # ✅ 새로운 API 호출 방식
+                model="gpt-4-turbo",
+                messages=[{"role": "user", "content": prompt}],
                 max_tokens=500
             )
             return response.choices[0].text.strip()
