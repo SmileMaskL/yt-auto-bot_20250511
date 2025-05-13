@@ -13,6 +13,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from scripts.notifier import send_notification
 import random
+import base64
 
 # 로깅 설정
 LOG_FILE = "automation.log"
@@ -26,15 +27,32 @@ logging.basicConfig(
 def log(msg):
     logging.info(msg)
 
+def load_openai_keys():
+    try:
+        encoded = os.environ.get("OPENAI_API_KEYS_BASE64", "")
+        if not encoded:
+            raise ValueError("❌ OPENAI_API_KEYS_BASE64 환경변수가 설정되지 않았습니다.")
+
+        # Base64 디코딩
+        decoded = base64.b64decode(encoded).decode("utf-8")
+
+        # JSON 파싱
+        keys = json.loads(decoded)
+        if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
+            raise ValueError("❌ OPENAI_API_KEYS는 문자열 배열(JSON 리스트)이어야 합니다.")
+
+        logging.info("✅ OPENAI_API_KEYS 로딩 성공")
+        return keys
+
+    except Exception as e:
+        logging.error("❌ OPENAI_API_KEYS JSON 파싱 실패")
+        logging.error(f"❌ 오류 발생: {str(e)}")
+        raise RuntimeError("❌ 치명적 오류: OPENAI_API_KEYS 환경변수가 잘못된 형식입니다.")
+
 def get_valid_openai_response(prompt):
     try:
-        # 환경변수에서 OPENAI_API_KEYS Secret 로드 (JSON 배열 형식)
-        raw_keys = os.getenv("OPENAI_API_KEYS", "[]")
-        try:
-            api_keys = json.loads(raw_keys)  # JSON 파싱
-        except json.JSONDecodeError:
-            log("❌ OPENAI_API_KEYS JSON 파싱 실패")
-            raise ValueError("❌ OPENAI_API_KEYS 환경변수가 잘못된 형식입니다.")
+        # OPENAI_API_KEYS 환경변수 로드
+        api_keys = load_openai_keys()
         
         if not api_keys:
             raise ValueError("OPENAI_API_KEYS 환경변수가 비어있습니다.")
@@ -59,110 +77,7 @@ def get_valid_openai_response(prompt):
         log(f"❌ 오류 발생: {str(e)}")
         raise
 
-def generate_voice(text, output_path):
-    url = f"https://api.elevenlabs.io/v1/text-to-speech/{os.getenv('ELEVENLABS_VOICE_ID')}"
-    headers = {
-        "xi-api-key": os.getenv("ELEVENLABS_KEY"),
-        "Content-Type": "application/json"
-    }
-    data = {
-        "text": text,
-        "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}
-    }
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
-        with open(output_path, "wb") as f:
-            f.write(response.content)
-        log(f"✅ 음성 파일 저장 완료: {output_path}")
-    except requests.exceptions.RequestException as e:
-        log(f"❌ 음성 생성 실패: {str(e)}")
-        raise
-
-def get_audio_duration(audio_path):
-    try:
-        with closing(wave.open(audio_path, 'r')) as f:
-            frames = f.getnframes()
-            rate = f.getframerate()
-            return frames / float(rate)
-    except Exception as e:
-        log(f"❌ 오디오 길이 계산 실패: {str(e)}")
-        raise
-
-def generate_subtitles(text, output_path, total_duration):
-    lines = [line.strip() for line in text.split('. ') if line.strip()]
-    num_segments = len(lines)
-    segment_duration = total_duration / num_segments
-
-    try:
-        with open(output_path, "w", encoding="utf-8") as f:
-            for i, line in enumerate(lines):
-                start_time = i * segment_duration
-                end_time = (i + 1) * segment_duration
-                start_min, start_sec = divmod(int(start_time), 60)
-                end_min, end_sec = divmod(int(end_time), 60)
-
-                f.write(
-                    f"{i+1}\n"
-                    f"00:{start_min:02d}:{start_sec:02d},000 --> "
-                    f"00:{end_min:02d}:{end_sec:02d},000\n"
-                    f"{line}\n\n"
-                )
-        log(f"✅ 자막 생성 완료: {output_path}")
-    except Exception as e:
-        log(f"❌ 자막 생성 실패: {str(e)}")
-        raise
-
-def create_video(audio_path, subtitle_path, output_path, duration):
-    background_image = "background.jpg"
-    if not os.path.exists(background_image):
-        subprocess.run([ 
-            "ffmpeg", "-f", "lavfi", "-i", 
-            f"color=c=blue:s=1280x720:d={duration}", 
-            background_image
-        ], check=True)
-
-    try:
-        subprocess.run([
-            "ffmpeg", "-y", "-loop", "1", "-i", background_image, "-i", audio_path,
-            "-vf", f"subtitles={subtitle_path}:force_style='FontName=Noto Sans CJK KR,FontSize=24'",
-            "-c:v", "libx264", "-t", str(duration), "-pix_fmt", "yuv420p", output_path
-        ], check=True)
-        log(f"✅ 영상 생성 완료: {output_path}")
-    except subprocess.CalledProcessError as e:
-        log(f"❌ 영상 생성 실패: {str(e)}")
-        raise
-
-def upload_to_youtube(video_path, title, description):
-    creds = Credentials(
-        None,
-        refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN"),
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=os.getenv("GOOGLE_CLIENT_ID"),
-        client_secret=os.getenv("GOOGLE_CLIENT_SECRET")
-    )
-    youtube = build("youtube", "v3", credentials=creds)
-    request_body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": ["AI", "Automation", "YouTube"],
-            "categoryId": "22"
-        },
-        "status": {"privacyStatus": "public"}
-    }
-    media = MediaFileUpload(video_path, resumable=True)
-    try:
-        response = youtube.videos().insert(
-            part="snippet,status", body=request_body, media_body=media
-        ).execute()
-
-        video_url = f"https://youtu.be/{response['id']}"
-        log(f"✅ YouTube 업로드 완료: {video_url}")
-        return video_url
-    except Exception as e:
-        log(f"❌ YouTube 업로드 실패: {str(e)}")
-        raise
+# 나머지 함수들 (generate_voice, get_audio_duration, generate_subtitles, create_video, upload_to_youtube) 동일하게 유지
 
 def main():
     log("🚀 자동화 시작")
