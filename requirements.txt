@@ -4,10 +4,10 @@ pytrends
 google-api-python-client
 google-auth
 google-auth-oauthlib
-moviepy==2.1.2
+moviepy
 imageio-ffmpeg
 Pillow
-elevenlabs
+elevenlabs>=1.0.0
 slack_sdk
 requests
 ffmpeg-python
