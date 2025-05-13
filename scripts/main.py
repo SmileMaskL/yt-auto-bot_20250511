@@ -1,4 +1,5 @@
 # 전체 자동화 파이썬 코드
+# 전체 자동화 파이썬 코드
 import os
 import openai
 import json
@@ -26,14 +27,18 @@ def log(msg): logging.info(msg)
 
 def get_valid_openai_response(prompt):
     try:
+        # 환경변수에서 OPENAI_API_KEYS Secret 로드 (JSON 배열 형식)
         raw_keys = os.getenv("OPENAI_API_KEYS", "[]")
         api_keys = json.loads(raw_keys)
+
         for key in api_keys:
             openai.api_key = key.strip()
             try:
                 log(f"🔑 OpenAI 키 시도: {key[:6]}...")
-                response = openai.ChatCompletion.create(
-                    model="gpt-3.5-turbo",
+                # OpenAI 클라이언트 초기화
+                client = openai.ChatCompletion
+                response = client.create(
+                    model="gpt-4-turbo",  # 최신 모델 사용
                     messages=[{"role": "user", "content": prompt}],
                     timeout=20
                 )
