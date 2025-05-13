@@ -6,6 +6,14 @@ import logging
 from time import sleep
 from pytrends.request import TrendReq
 from openai import OpenAI  # ✅ 새로운 모듈 import 방식
+import os
+import json
+
+try:
+    print(f"[DEBUG] OPENAI_API_KEYS = {os.environ.get('OPENAI_API_KEYS')}")
+    api_keys = json.loads(os.environ.get("OPENAI_API_KEYS", "[]"))
+except Exception as e:
+    print(f"[DEBUG] JSON 파싱 에러: {str(e)}")
 
 logging.basicConfig(level=logging.INFO)
 
