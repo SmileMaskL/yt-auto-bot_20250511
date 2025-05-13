@@ -1,5 +1,5 @@
 # 필요한 라이브러리 명시
-openai
+openai>=1.0.0
 pytrends
 google-api-python-client
 google-auth
