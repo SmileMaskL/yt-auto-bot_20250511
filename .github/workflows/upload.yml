@@ -1,65 +1,35 @@
 # GitHub Actions 자동화 설정
-name: YouTube Upload Automation
+name: YouTube Auto Upload
 
 on:
-  workflow_dispatch: # 수동 실행
+  workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *'  # 매일 오전 11시 KST 실행
+    - cron: '0 6 * * *'  # 매일 오전 6시 실행 (UTC 기준)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: ✅ 리포지토리 체크아웃
-      uses: actions/checkout@v4
+      - name: 📥 Repository Checkout
+        uses: actions/checkout@v4
 
-    - name: ✅ Python 3.10 설치
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
 
-    - name: ✅ 의존성 설치
-      run: |
-        rm -rf "$HOME/.cache/pip"
-        python -m pip install --upgrade pip
-        pip install --no-cache-dir -r requirements.txt
+      - name: 📦 Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: ✅ ffmpeg 설치
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y ffmpeg
+      - name: 🔐 Load API keys into environment
+        run: |
+          echo "OPENAI_API_KEYS=${{ secrets.OPENAI_API_KEYS }}" >> $GITHUB_ENV
+          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_SECRET_JSON=${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" >> $GITHUB_ENV
+          echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> $GITHUB_ENV
 
-    - name: ✅ 환경 변수 설정
-      run: |
-        echo "OPENAI_API_KEYS=${{ secrets.OPENAI_API_KEYS }}" >> $GITHUB_ENV
-        echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
-        echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
-        echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
-        echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
-        echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
-
-    - name: ✅ 자동화 스크립트 실행
-      run: |
-        PYTHONPATH=${{ github.workspace }} python scripts/main.py
-
-    - name: ✅ 로그 출력
-      if: always()
-      run: |
-        echo "===== 로그 내용 ====="
-        cat automation.log || echo "로그 파일이 없습니다."
-
-    - name: 📦 오래된 로그 압축
-      if: always()
-      run: |
-        mkdir -p logs
-        find . -maxdepth 1 -name "*.log" -mtime +6 -print | while read file; do
-          zip -j "logs/$(basename "$file" .log)_$(date +%Y%m%d%H%M).zip" "$file" && rm "$file"
-        done
-
-    - name: 🧹 임시 파일 정리
-      if: always()
-      run: |
-        rm -rf __pycache__ *.mp3 *.mp4 *.aac *.wav *.srt *.tmp *.json || true
+      - name: ▶️ Run YouTube Automation Script
+        run: python scripts/main.py
