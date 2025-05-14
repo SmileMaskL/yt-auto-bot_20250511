@@ -1,0 +1,31 @@
+name: 🤖 24/7 AI Tube Factory
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # 4시간 주기 실행
+  workflow_dispatch:
+    inputs:
+      daily_upload:
+        description: '일일 업로드 수'
+        default: '20'
+
+jobs:
+  production:
+    runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+      TZ: Asia/Seoul
+    
+    steps:
+    - name: 🔄 저장소 동기화
+      uses: actions/checkout@v4
+
+    - name: 🛡️ GCP 인증
+      run: |
+        echo "${{ secrets.GCP_SA_KEY }}" > config/gcp_credentials.json
+        
+    - name: 🚀 AI 엔진 실행
+      run: |
+        python src/main.py \
+          --upload-count ${{ inputs.daily_upload }} \
+          --resolution 1080p
