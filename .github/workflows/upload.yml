@@ -7,42 +7,38 @@ on:
 
 jobs:
   upload-video:
-    runs-on: ubuntu-22.04 # Using a more recent LTS version
+    runs-on: ubuntu-22.04
 
-    env: # Define environment variables from secrets for the whole job
+    env:
       OPENAI_API_KEYS_BASE64: ${{ secrets.OPENAI_API_KEYS_BASE64 }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
       SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      # Add any other necessary environment variables here (e.g., ELEVENLABS_KEY if you use it)
 
     steps:
       - name: 🔄 Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Needed for some git operations if any
+          fetch-depth: 0
 
-      # FFmpeg 설치: 안정적이고 최신 버전 (Stable Static Build)
       - name: 🛠️ Install FFmpeg (Stable Static Build)
         run: |
-          # FFmpeg 최신 안정 버전 다운로드 및 설치
-          curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-i686-static.tar.xz -o ffmpeg.tar.xz
+          curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o ffmpeg.tar.xz
           tar -xf ffmpeg.tar.xz
-          sudo cp ffmpeg-*-amd64-static/ffmpeg /usr/bin/ffmpeg
+          FF_DIR=$(find . -type d -name "ffmpeg-*-amd64-static" | head -n 1)
+          sudo cp "$FF_DIR/ffmpeg" /usr/bin/ffmpeg
           sudo chmod +x /usr/bin/ffmpeg
-          # 설치 후 ffmpeg 버전 확인
           ffmpeg -version
           
-          # FFmpeg 설치 확인 및 버전 체크
           FFMPEG_VERSION_FULL=$(ffmpeg -version)
           echo "Full FFmpeg version output:"
           echo "$FFMPEG_VERSION_FULL"
           
           FFMPEG_VERSION=$(echo "$FFMPEG_VERSION_FULL" | grep -oP 'ffmpeg version \K[^ ]+' | cut -d'.' -f1)
           if [ -z "$FFMPEG_VERSION" ] || [ "$FFMPEG_VERSION" -lt 6 ]; then
-            echo "::error::❌ FFmpeg 6.0+ installation check failed. Detected major version: $FFMPEG_VERSION. Full output above."
+            echo "::error::❌ FFmpeg 6.0+ installation check failed. Detected major version: $FFMPEG_VERSION"
             exit 1
           fi
           echo "✅ FFmpeg major version $FFMPEG_VERSION installed successfully."
@@ -62,8 +58,7 @@ jobs:
             echo "::error::❌ requirements.txt not found!"
             exit 1
           fi
-          # Verify moviepy can find ffmpeg (optional, but good for debugging)
-          python -c "from moviepy.config import get_setting; print(f'MoviePy FFmpeg path: {get_setting("FFMPEG_BINARY")}')"
+          python -c "from moviepy.config import get_setting; print(f'MoviePy FFmpeg path: {get_setting('FFMPEG_BINARY')}')"
 
       - name: ✅ Verify Essential Files
         run: |
@@ -72,27 +67,34 @@ jobs:
             echo "::error::❌ Required font file not found: $FONT_PATH"
             exit 1
           else
-            echo "✅ Font file verified: $(realpath $FONT_PATH)"
+            echo "✅ Font file verified: $(readlink -f $FONT_PATH)"
           fi
 
           BACKGROUND_PATH="background.jpg"
           if [ ! -f "$BACKGROUND_PATH" ]; then
             echo "::warning::⚠️ Background image not found: $BACKGROUND_PATH. Script might use a default color."
-            # Depending on script logic, this might not be a fatal error.
-            # If it's fatal, change to ::error:: and exit 1.
           else
-            echo "✅ Background image verified: $(realpath $BACKGROUND_PATH)"
+            echo "✅ Background image verified: $(readlink -f $BACKGROUND_PATH)"
           fi
 
       - name: 🛡️ Validate Environment Variables & Configuration
-        run: python scripts/validate_env.py # This script will use os.getenv
+        run: |
+          if [ ! -f scripts/validate_env.py ]; then
+            echo "::error::❌ Missing validation script: scripts/validate_env.py"
+            exit 1
+          fi
+          python scripts/validate_env.py
 
       - name: 🚀 Run Main Automation Script
-        run: python scripts/main.py
+        run: |
+          if [ ! -f scripts/main.py ]; then
+            echo "::error::❌ Missing main script: scripts/main.py"
+            exit 1
+          fi
+          python scripts/main.py
 
-      # Optional: Upload logs as artifacts for debugging
       - name: 📤 Upload Logs
-        if: always() # Run this step even if previous steps fail
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: automation-logs
