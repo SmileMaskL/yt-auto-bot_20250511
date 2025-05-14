@@ -1,13 +1,23 @@
-# 필요한 라이브러리 명시
-openai>=1.0.0
-pytrends==4.9.2
-google-api-python-client==2.123.0
-google-auth==2.29.0
-requests==2.32.2
-python-slugify==8.0.4
-python-dotenv==1.0.1
-slack-sdk==3.27.0
-elevenlabs==0.2.21
-ffmpeg-python==0.2.0
-moviepy==2.1.2
-Pillow==10.3.0
+# Core Packages
+python==3.10.12
+openai>=1.14.0
+google-api-python-client>=2.123.0
+
+# Video Processing
+moviepy>=2.1.0
+ffmpeg-python>=0.2.0
+pydub>=0.25.1
+
+# Utilities
+tenacity>=8.2.3
+python-dotenv>=1.0.0
+loguru>=0.7.2
+
+# System
+psutil>=5.9.8
+pyyaml>=6.0.1
+tqdm>=4.66.2
+
+# Machine Learning
+torch>=2.3.0+cu121
+transformers>=4.40.0
