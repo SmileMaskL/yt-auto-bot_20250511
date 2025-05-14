@@ -42,8 +42,9 @@ jobs:
           echo "$GOOGLE_CLIENT_SECRET_BASE64" | base64 -d > client_secret.json
           echo "✅ Secrets decoded successfully"
 
-      - name: 🚀 Run Main Script
+      - name: 🚀 Run Main Script with PYTHONPATH
         run: |
+          export PYTHONPATH=.
           python scripts/main.py
 
       - name: 🧹 Clean Up
