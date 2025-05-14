@@ -7,6 +7,7 @@ import wave
 import logging
 import base64
 import random
+import binascii
 from datetime import datetime
 from contextlib import closing
 from google.oauth2.credentials import Credentials
@@ -34,202 +35,175 @@ def log(msg):
 
 def load_openai_keys():
     try:
-        encoded = os.environ.get("OPENAI_API_KEYS_BASE64", "")
-        if not encoded:
-            raise ValueError("❌ OPENAI_API_KEYS_BASE64 환경변수 미설정")
+        encoded = os.environ.get("OPENAI_API_KEYS_BASE64", "").strip()
+        
+        if not encoded or encoded.isspace():
+            raise ValueError("🚨 OPENAI_API_KEYS_BASE64 미설정 (환경변수 확인 필요)")
+            
+        if len(encoded) < 20:
+            raise ValueError(f"🚨 유효하지 않은 Base64 길이 ({len(encoded)}/20 최소)")
 
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        keys = json.loads(decoded)
+        try:
+            decoded_bytes = base64.b64decode(encoded, validate=True)
+            decoded = decoded_bytes.decode('utf-8')
+        except (binascii.Error, UnicodeDecodeError) as e:
+            raise ValueError(f"🚨 Base64 디코딩 오류: {str(e)}")
+        
+        try:
+            keys = json.loads(decoded)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"🚨 JSON 파싱 오류: {str(e)} (디코딩된 값: {decoded[:50]}...)")
 
-        if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
-            raise ValueError("❌ API 키 형식 오류")
+        if not isinstance(keys, list) or len(keys) == 0:
+            raise TypeError("🚨 키 형식 오류: 비어있지 않은 리스트 필요")
+            
+        for i, key in enumerate(keys):
+            if not isinstance(key, str) or not key.startswith("sk-"):
+                raise ValueError(f"🚨 {i+1}번 키 형식 오류: 'sk-'로 시작해야 함")
 
-        log(f"✅ OpenAI 키 {len(keys)}개 로드 완료")
+        log(f"✅ OpenAI 키 {len(keys)}개 검증 완료")
         return keys
 
     except Exception as e:
-        log(f"❌ 키 로딩 실패: {str(e)}")
+        log(f"""
+        🔍 OPENAI_API_KEYS_BASE64 디버그 정보
+        - 환경변수 길이: {len(encoded)}
+        - Base64 헤더: {encoded[:20]}...
+        - 디코딩 샘플: {decoded[:50] if 'decoded' in locals() else 'N/A'}
+        """)
         raise
 
 def get_valid_openai_response(prompt):
+    keys = load_openai_keys()
+    client = OpenAI(api_key=random.choice(keys))
+    
     try:
-        api_keys = load_openai_keys()
-        chosen_key = random.choice(api_keys).strip()
-        log(f"🔑 OpenAI 키 시도: {chosen_key[:6]}...")
-
-        client = OpenAI(api_key=chosen_key)
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-4-turbo",
             messages=[{"role": "user", "content": prompt}],
-            timeout=20
+            temperature=0.7,
+            max_tokens=2000
         )
-        return response.choices[0].message.content
-
+        content = response.choices[0].message.content
+        if len(content) < 100:
+            raise ValueError("⚠️ 생성된 콘텐츠가 너무 짧습니다")
+        return content
     except Exception as e:
-        log(f"❌ OpenAI 요청 실패: {str(e)}")
+        log(f"❌ OpenAI API 오류: {str(e)}")
         raise
 
 def generate_voice(text, output_path):
-    elevenlabs_key = os.getenv("ELEVENLABS_KEY")
-    voice_id = os.getenv("ELEVENLABS_VOICE_ID")
-
-    if not elevenlabs_key or not voice_id:
-        raise ValueError("❌ ElevenLabs 설정 오류")
-
-    headers = {
-        "Accept": "audio/mpeg",
-        "Content-Type": "application/json",
-        "xi-api-key": elevenlabs_key
-    }
-
-    data = {
-        "text": text,
-        "model_id": "eleven_multilingual_v2",
-        "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}
-    }
-
+    keys = load_openai_keys()
+    client = OpenAI(api_key=random.choice(keys))
+    
     try:
-        response = requests.post(
-            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
-            headers=headers,
-            json=data,
-            timeout=60
+        response = client.audio.speech.create(
+            model="tts-1-hd",
+            voice="nova",
+            input=text
         )
-        response.raise_for_status()
-
-        with open(output_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=1024):
-                f.write(chunk)
-        log(f"✅ 음성 파일 저장: {output_path}")
-
+        response.stream_to_file(output_path)
+        log(f"✅ 음성 파일 생성: {output_path}")
     except Exception as e:
         log(f"❌ 음성 생성 실패: {str(e)}")
         raise
 
-def get_audio_duration(audio_path):
+def get_audio_duration(file_path):
     try:
-        result = subprocess.run(
-            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
-             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-        )
-        return float(result.stdout.strip())
+        with closing(wave.open(file_path, 'r')) as f:
+            frames = f.getnframes()
+            rate = f.getframerate()
+            duration = frames / float(rate)
+            log(f"🎵 오디오 길이: {duration:.2f}초")
+            return duration
     except Exception as e:
         log(f"❌ 오디오 길이 측정 실패: {str(e)}")
         raise
 
-def generate_subtitles(text, output_path, total_duration):
+def generate_subtitles(text, output_path, duration):
     try:
-        lines = [line.strip() for line in text.split('.') if line.strip()]
-        num_segments = len(lines)
-        segment_duration = total_duration / num_segments if num_segments > 0 else total_duration
-
-        with open(output_path, "w", encoding="utf-8") as f:
-            for i, line in enumerate(lines):
-                start_time = i * segment_duration
-                end_time = (i + 1) * segment_duration
-                if end_time > total_duration:
-                    end_time = total_duration
-
-                f.write(
-                    f"{i+1}\n"
-                    f"{datetime.utcfromtimestamp(start_time).strftime('%H:%M:%S,000')} --> "
-                    f"{datetime.utcfromtimestamp(end_time).strftime('%H:%M:%S,000')}\n"
-                    f"{line}\n\n"
-                )
-        log(f"✅ 자막 생성: {output_path}")
-
+        words_per_second = len(text.split()) / duration
+        segment_length = int(duration / 10)
+        
+        with open(output_path, 'w', encoding='utf-8') as f:
+            for i in range(10):
+                start = i * segment_length
+                end = (i+1) * segment_length
+                f.write(f"{i+1}\n")
+                f.write(f"{datetime.utcfromtimestamp(start).strftime('%H:%M:%S,000')} --> ")
+                f.write(f"{datetime.utcfromtimestamp(end).strftime('%H:%M:%S,000')}\n")
+                f.write(f"{text[i*len(text)//10:(i+1)*len(text)//10]}\n\n")
+        log(f"✅ 자막 파일 생성: {output_path}")
     except Exception as e:
-        log(f"❌ 자막 생성 오류: {str(e)}")
+        log(f"❌ 자막 생성 실패: {str(e)}")
         raise
 
 def create_video(audio_path, subtitle_path, output_path, duration):
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    font_path = os.path.normpath(os.path.join(script_dir, "../fonts/NotoSansCJKkr-Regular.otf"))
-    background_image = os.path.join(script_dir, "../background.jpg")
-
-    # ▼▼▼ 폰트 검증 추가 ▼▼▼
-    if not os.path.exists(font_path):
-        log(f"❌ 폰트 파일 누락: {font_path}")
-        raise FileNotFoundError(f"Font file not found: {font_path}")
-
-    if not os.path.exists(background_image):
-        log(f"⚠️ 배경 이미지 없음: {background_image}")
-        background_image = os.path.join(script_dir, "temp_background.png")
-        subprocess.run([
-            "ffmpeg", "-y", "-f", "lavfi", "-i", 
-            "color=c=blue:s=1280x720:d=1", 
-            background_image
-        ], check=True)
-
-    ffmpeg_cmd = [
-        "ffmpeg", "-y",
-        "-loop", "1", "-i", background_image,
-        "-i", audio_path,
-        "-vf", f"subtitles='{subtitle_path}':force_style='FontName=Noto Sans CJK KR,FontSize=24'",
-        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
-        "-c:a", "aac", "-b:a", "128k",
-        "-t", str(duration),
-        "-pix_fmt", "yuv420p",
-        output_path
-    ]
-
     try:
+        ffmpeg_cmd = [
+            "ffmpeg",
+            "-y",
+            "-i", audio_path,
+            "-vf", f"subtitles={subtitle_path}:force_style='FontName=Noto Sans CJK KR,FontSize=24'",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "22",
+            "-pix_fmt", "yuv420p",
+            "-t", str(duration),
+            output_path
+        ]
         subprocess.run(ffmpeg_cmd, check=True)
-        log(f"✅ 영상 생성: {output_path}")
+        log(f"🎥 비디오 생성 완료: {output_path}")
     except subprocess.CalledProcessError as e:
         log(f"❌ FFmpeg 오류: {str(e)}")
         raise
 
-def upload_to_youtube(video_path, title, description):
-    creds = Credentials(
-        None,
-        refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN"),
-        client_id=os.getenv("GOOGLE_CLIENT_ID"),
-        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
-        token_uri="https://oauth2.googleapis.com/token"
-    )
-
-    if creds.expired:
-        creds.refresh(requests.Request())
-
-    youtube = build("youtube", "v3", credentials=creds)
-    media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
-
-    video_body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "categoryId": "28",
-            "tags": ["AI", "자동화", "유튜브"]
-        },
-        "status": {"privacyStatus": "public"}
-    }
-
+def upload_to_youtube(file_path, title, description):
     try:
-        response = youtube.videos().insert(
+        credentials = Credentials.from_authorized_user_file("token.json")
+        youtube = build('youtube', 'v3', credentials=credentials)
+        
+        request = youtube.videos().insert(
             part="snippet,status",
-            body=video_body,
-            media_body=media
-        ).execute()
-        return f"https://youtu.be/{response['id']}"
+            body={
+                "snippet": {
+                    "title": title,
+                    "description": description,
+                    "categoryId": "28"
+                },
+                "status": {"privacyStatus": "public"}
+            },
+            media_body=MediaFileUpload(file_path)
+        )
+        response = request.execute()
+        video_id = response['id']
+        url = f"https://youtu.be/{video_id}"
+        log(f"📤 YouTube 업로드 완료: {url}")
+        return url
     except Exception as e:
-        log(f"❌ 업로드 실패: {str(e)}")
+        log(f"❌ YouTube 업로드 실패: {str(e)}")
         raise
 
 def main():
     log("🚀 자동화 시작")
     try:
-        # 콘텐츠 생성 파이프라인
-        script = get_valid_openai_response("오늘 대한민국 주요 뉴스 3개를 요약한 쇼츠 대본 생성")
+        validation = subprocess.run(
+            ["python", "scripts/validate_env.py"],
+            capture_output=True,
+            text=True
+        )
+        if validation.returncode != 0:
+            log(f"🚨 환경 검증 실패:\n{validation.stderr}")
+            raise RuntimeError("시스템 검증 실패")
+
+        script = get_valid_openai_response(
+            "2025년 5월 대한민국 주요 IT 뉴스 3개를 마크다운 형식으로 요약해주세요"
+        )
         generate_voice(script, "output.mp3")
         duration = get_audio_duration("output.mp3")
         generate_subtitles(script, "subtitles.srt", duration)
         create_video("output.mp3", "subtitles.srt", "final.mp4", duration)
         
-        # YouTube 업로드
         video_url = upload_to_youtube(
             "final.mp4",
             f"AI 생성 뉴스 요약 {datetime.now().strftime('%Y-%m-%d')}",
@@ -238,8 +212,6 @@ def main():
 
         if send_notification:
             send_notification(f"✅ 업로드 완료!\n{video_url}")
-        else:
-            log("ℹ️ 알림 기능 사용 안함")
 
     except Exception as e:
         log(f"❌ 치명적 오류: {str(e)}")
