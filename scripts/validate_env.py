@@ -4,12 +4,12 @@ import json
 import base64
 import logging
 
-# Configure logging (avoid duplication in reruns)
+# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [validate_env] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
-    force=True  # Ensures reconfiguration even if already set
+    force=True
 )
 
 def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = False) -> bool:
@@ -32,6 +32,7 @@ def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = Fa
     logging.info(f"✅ Environment variable '{var_name}' is SET. Value: {display_value}")
     return True
 
+
 def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64") -> bool:
     """Validates OPENAI_API_KEYS_BASE64 contains valid base64-encoded JSON list of sk- keys."""
     encoded_keys = os.environ.get(env_var_name, "").strip()
@@ -53,7 +54,6 @@ def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64")
         parsed_keys = json.loads(decoded_str)
     except json.JSONDecodeError as e:
         logging.error(f"🚨 JSON parsing failed for decoded {env_var_name}: {e}")
-        logging.debug(f"🔧 Raw decoded string was: {decoded_str[:100]}...")
         return False
 
     if not isinstance(parsed_keys, list) or not parsed_keys:
@@ -74,28 +74,35 @@ def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64")
     else:
         return False
 
-def validate_env() -> bool:
-    """Validate that all required environment variables are set."""
-    required_vars = [
+
+def check_required_envs() -> bool:
+    """Check all required environment variables are set."""
+    required_envs = [
         "OPENAI_API_KEYS_BASE64",
-        "ELEVENLABS_API_KEY",
-        "SLACK_WEBHOOK_URL",
         "GOOGLE_CLIENT_ID",
         "GOOGLE_CLIENT_SECRET",
-        "GOOGLE_REFRESH_TOKEN"
+        "GOOGLE_REFRESH_TOKEN",
+        "SLACK_API_TOKEN",
+        "SLACK_CHANNEL",
+        "ELEVENLABS_API_KEY",
+        "SLACK_WEBHOOK_URL"
     ]
-    missing = [var for var in required_vars if not os.getenv(var)]
+
+    missing = [key for key in required_envs if not os.getenv(key)]
+
     if missing:
-        print(f"❌ 누락된 환경 변수: {', '.join(missing)}")
+        logging.error(f"🚨 Missing required environment variables: {', '.join(missing)}")
         return False
+    logging.info("✅ All required environment variables are set.")
     return True
+
 
 def main():
     logging.info("🚀 Starting environment variable validation...")
 
     # Step 1: Check required environment variables
     logging.info("🔍 Checking required environment variables...")
-    if not validate_env():
+    if not check_required_envs():
         sys.exit(1)
 
     # Step 2: Validate structure of the OPENAI_API_KEYS_BASE64
@@ -105,6 +112,7 @@ def main():
 
     logging.info("✅ All required environment variables and structures are valid.")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
