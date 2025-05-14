@@ -1,82 +1,65 @@
 # scripts/validate_env.py
+
 import os
 import sys
 import json
 import base64
 import logging
 
-# Configure logging (avoid duplication in reruns)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [validate_env] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)],
-    force=True  # Ensures reconfiguration even if already set
+    force=True
 )
 
 def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = False) -> bool:
-    """Check if a single environment variable is set correctly."""
     var_value = os.environ.get(var_name)
-    
     if var_value is None:
-        logging.error(f"🚨 Environment variable '{var_name}' is NOT SET.")
+        logging.error(f"🚨 환경 변수 '{var_name}'이 설정되지 않았습니다.")
         return False
-    
     if not can_be_empty and not var_value.strip():
-        logging.error(f"🚨 Environment variable '{var_name}' is SET but EMPTY.")
+        logging.error(f"🚨 환경 변수 '{var_name}'이 비어 있습니다.")
         return False
 
     display_value = (
-        f"'{var_value[:2]}...{var_value[-2:]}' (length: {len(var_value)})"
-        if is_secret and var_value
-        else f"'{var_value}'"
+        f"{var_value[:2]}...{var_value[-2:]} (길이: {len(var_value)})" if is_secret else var_value
     )
-    logging.info(f"✅ Environment variable '{var_name}' is SET. Value: {display_value}")
+    logging.info(f"✅ 환경 변수 '{var_name}' 확인 완료. 값: {display_value}")
     return True
 
 def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64") -> bool:
-    """Validates OPENAI_API_KEYS_BASE64 contains valid base64-encoded JSON list of sk- keys."""
     encoded_keys = os.environ.get(env_var_name, "").strip()
-    
     if not encoded_keys:
-        logging.error(f"🚨 {env_var_name} is not set or empty. Cannot validate structure.")
+        logging.error(f"🚨 {env_var_name} 환경 변수가 비어 있거나 존재하지 않습니다.")
         return False
 
-    logging.info(f"🔍 Validating structure of {env_var_name}...")
-
+    logging.info(f"🔍 {env_var_name} 구조 유효성 검사 시작...")
     try:
         decoded_bytes = base64.b64decode(encoded_keys, validate=True)
         decoded_str = decoded_bytes.decode("utf-8")
-    except Exception as e:
-        logging.error(f"🚨 Base64 decoding failed for {env_var_name}: {e}")
-        return False
-
-    try:
         parsed_keys = json.loads(decoded_str)
-    except json.JSONDecodeError as e:
-        logging.error(f"🚨 JSON parsing failed for decoded {env_var_name}: {e}")
-        logging.debug(f"🔧 Raw decoded string was: {decoded_str[:100]}...")
+    except Exception as e:
+        logging.error(f"🚨 base64 디코딩 또는 JSON 파싱 실패: {e}")
         return False
 
     if not isinstance(parsed_keys, list) or not parsed_keys:
-        logging.error(f"🚨 Decoded {env_var_name} is not a non-empty list.")
+        logging.error(f"🚨 {env_var_name} 값은 유효한 리스트가 아닙니다.")
         return False
 
-    valid_keys = True
+    valid = True
     for i, key in enumerate(parsed_keys):
         if not isinstance(key, str) or not key.startswith("sk-"):
-            logging.error(f"🚨 Key at index {i} is invalid: {key}")
-            valid_keys = False
+            logging.error(f"🚨 인덱스 {i}의 키가 유효하지 않음: {key}")
+            valid = False
         elif len(key) < 20:
-            logging.warning(f"⚠️ Key at index {i} seems unusually short.")
+            logging.warning(f"⚠️ 인덱스 {i}의 키가 비정상적으로 짧습니다.")
 
-    if valid_keys:
-        logging.info(f"🔐 Successfully validated structure: {len(parsed_keys)} keys found.")
-        return True
-    else:
-        return False
+    if valid:
+        logging.info(f"✅ {len(parsed_keys)}개의 OpenAI 키가 유효합니다.")
+    return valid
 
 def check_required_envs() -> bool:
-    """Check all required environment variables are set."""
     required_envs = [
         "OPENAI_API_KEYS_BASE64",
         "GOOGLE_CLIENT_ID",
@@ -84,40 +67,29 @@ def check_required_envs() -> bool:
         "GOOGLE_REFRESH_TOKEN",
         "SLACK_API_TOKEN",
         "SLACK_CHANNEL",
+        "ELEVENLABS_API_KEY",
+        "SLACK_WEBHOOK_URL"
     ]
-    
     missing = [key for key in required_envs if not os.getenv(key)]
-    
     if missing:
-        logging.error(f"🚨 Missing required environment variables: {', '.join(missing)}")
+        logging.error(f"🚨 필수 환경 변수 누락: {', '.join(missing)}")
         return False
-    logging.info("✅ All required environment variables are set.")
     return True
 
-def main():
-    logging.info("🚀 Starting environment variable validation...")
+def validate_env() -> bool:
+    logging.info("🔎 환경 변수 유효성 검사 실행 중...")
+    required = check_required_envs()
+    structure_ok = validate_openai_keys_structure()
+    return required and structure_ok
 
-    # Step 1: Check required environment variables
-    logging.info("🔍 Checking required environment variables...")
-    if not check_required_envs():
+def main():
+    logging.info("🚀 전체 환경 변수 점검 시작...")
+
+    if not validate_env():
+        logging.error("❌ 유효하지 않은 환경 변수로 인해 중단됩니다.")
         sys.exit(1)
 
-    # Step 2: Validate structure of the OPENAI_API_KEYS_BASE64
-    if os.environ.get("OPENAI_API_KEYS_BASE64"):
-        if not validate_openai_keys_structure():
-            sys.exit(1)
-
-    # Step 3: Check optional environment variables
-    optional_vars = [
-        ("SLACK_API_TOKEN", True, True),
-        ("SLACK_CHANNEL", False, True),
-    ]
-    
-    logging.info("📎 Checking optional environment variables...")
-    for var_name, is_secret, can_be_empty in optional_vars:
-        check_env_var(var_name, is_secret, can_be_empty)  # Optional vars do not affect overall validity
-
-    logging.info("✅ All required environment variables and structures are valid.")
+    logging.info("✅ 모든 환경 변수 유효성 검사 통과.")
     sys.exit(0)
 
 if __name__ == "__main__":
