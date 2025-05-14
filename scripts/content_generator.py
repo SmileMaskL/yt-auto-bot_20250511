@@ -1,117 +1,252 @@
 # 콘텐츠 생성 관련 기능
-import random
-import json
 import os
+import json
+import requests
+import subprocess
+import wave
 import logging
-from time import sleep
-from pytrends.request import TrendReq
+import base64
+import random
+from datetime import datetime
+from contextlib import closing
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 from openai import OpenAI
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# 로깅 설정
+LOG_FILE = "automation.log"
+logging.basicConfig(
+    filename=LOG_FILE,
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S"
+)
 
-class OpenAIKeyManager:
-    def __init__(self):
-        # Base64 인코딩된 키 로드
-        encoded_keys = os.environ.get("OPENAI_API_KEYS_BASE64")
-        if not encoded_keys:
-            logging.error("❌ OPENAI_API_KEYS_BASE64 환경 변수가 설정되지 않았습니다.")
-            raise ValueError("OpenAI API 키 환경 변수가 설정되지 않았습니다.")
-        
-        try:
-            import base64
-            raw_keys_from_env = base64.b64decode(encoded_keys).decode('utf-8')
-            logging.info("✅ OPENAI_API_KEYS_BASE64를 성공적으로 디코딩했습니다.")
-        except Exception as e:
-            logging.error(f"❌ OPENAI_API_KEYS_BASE64 디코딩 실패: {e}")
-            raise ValueError(f"OPENAI_API_KEYS_BASE64 디코딩 실패: {e}")
+try:
+    from scripts.notifier import send_notification
+except ImportError as e:
+    send_notification = None
+    logging.info(f"⚠️ 알림 모듈 로드 실패: {str(e)}")
 
-        try:
-            self.keys = json.loads(raw_keys_from_env)
-            if not self.keys or not isinstance(self.keys, list) or not all(isinstance(k, str) for k in self.keys):
-                logging.error(f"❌ API 키 리스트가 비어있거나 형식이 잘못되었습니다. 수신된 키: {self.keys}")
-                raise ValueError("API 키 리스트가 비어있거나 형식이 잘못되었습니다.")
-            logging.info(f"✅ OpenAIKeyManager: {len(self.keys)}개의 API 키 로드됨.")
-        except json.JSONDecodeError as e:
-            logging.error(f"❌ OPENAI_API_KEYS_BASE64 환경변수 JSON 파싱 실패: {e}. RAW 데이터: '{raw_keys_from_env}'")
-            raise ValueError(f"OPENAI_API_KEYS_BASE64 환경변수 JSON 파싱 실패: {e}")
-        
-        self.index = 0
-        if not self.keys:
-             logging.error("❌ API 키 리스트가 비어있습니다 (파싱 후).")
-             raise ValueError("API 키 리스트가 비어있습니다.")
+def log(msg):
+    logging.info(msg)
 
-    def get_key(self):
-        if not self.keys:
-            raise RuntimeError("OpenAI API 키가 로드되지 않았습니다.")
-        key = self.keys[self.index]
-        self.index = (self.index + 1) % len(self.keys)
-        return key
-
-# 키 매니저 인스턴스화는 함수 내에서 필요할 때 처리
-def get_key_manager():
-    global key_manager
-    if 'key_manager' not in globals() or key_manager is None:
-        key_manager = OpenAIKeyManager()
-    return key_manager
-
-def get_trending_keywords():
+def load_openai_keys():
     try:
-        pytrends = TrendReq(hl='ko-KR', tz=540)
-        trending_searches_df = pytrends.trending_searches(pn='south_korea')
-        if trending_searches_df.empty:
-            logging.warning("트렌드 키워드를 가져오지 못했습니다 (결과 없음). 기본 키워드를 사용합니다.")
-            return ["대한민국 주요 뉴스", "오늘의 날씨", "IT 기술 동향"]
-        
-        keywords = trending_searches_df.iloc[:, 0].tolist()[:5]
-        logging.info(f"트렌드 키워드 (상위 {len(keywords)}개): {keywords}")
-        return keywords
+        encoded = os.environ.get("OPENAI_API_KEYS_BASE64", "")
+        if not encoded:
+            raise ValueError("❌ OPENAI_API_KEYS_BASE64 환경변수 미설정")
+
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        keys = json.loads(decoded)
+
+        if not isinstance(keys, list) or not all(isinstance(k, str) for k in keys):
+            raise ValueError("❌ API 키 형식 오류")
+
+        log(f"✅ OpenAI 키 {len(keys)}개 로드 완료")
+        return keys
+
     except Exception as e:
-        logging.error(f"트렌드 키워드 가져오기 실패: {e}")
-        return ["대한민국 경제 전망", "최신 영화 순위", "인공지능 발전"]
+        log(f"❌ 키 로딩 실패: {str(e)}")
+        raise
 
-def generate_script_from_keyword(keyword):
-    prompt = f"{keyword}에 대한 흥미로운 사실과 정보를 바탕으로 한 200자 내외의 짧은 유튜브 쇼츠 스크립트를 작성해줘. 마지막에는 시청자에게 질문을 던지거나 콜투액션을 포함해줘."
-    
-    # 키 매니저 가져오기
-    km = get_key_manager()
-    
-    # 키 순환 시도
-    initial_index = km.index
-    for i in range(len(km.keys)):
-        current_key = km.get_key()
-        try:
-            logging.info(f"📜 스크립트 생성 시도 (키: {current_key[:6]}..., 키워드: {keyword})")
-            client = OpenAI(api_key=current_key)
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant that generates concise and engaging YouTube shorts scripts."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=300,
-                temperature=0.7
-            )
-            generated_text = response.choices[0].message.content.strip()
-            logging.info(f"✅ 스크립트 생성 성공 (키: {current_key[:6]}...)")
-            return generated_text
-        except Exception as e:
-            logging.warning(f"API 키 ({current_key[:6]}...) 실패: {e}. 다음 키로 시도합니다. ({i+1}/{len(km.keys)})")
-            sleep(1)
-
-    logging.error("모든 OpenAI API 키를 사용한 스크립트 생성에 실패했습니다.")
-    raise RuntimeError("모든 OpenAI API 키가 실패했습니다.")
-
-# 이 파일이 직접 실행될 때 테스트용 코드
-if __name__ == "__main__":
-    logging.info("content_generator.py 직접 실행 테스트 시작")
+def get_valid_openai_response(prompt):
     try:
-        keywords = get_trending_keywords()
-        if keywords:
-            selected_keyword = random.choice(keywords)
-            logging.info(f"선택된 테스트 키워드: {selected_keyword}")
-            script = generate_script_from_keyword(selected_keyword)
-            logging.info(f"생성된 스크립트:\n{script}")
+        api_keys = load_openai_keys()
+        chosen_key = random.choice(api_keys).strip()
+        log(f"🔑 OpenAI 키 시도: {chosen_key[:6]}...")
+
+        client = OpenAI(api_key=chosen_key)
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            timeout=20
+        )
+        return response.choices[0].message.content
+
+    except Exception as e:
+        log(f"❌ OpenAI 요청 실패: {str(e)}")
+        raise
+
+def generate_voice(text, output_path):
+    elevenlabs_key = os.getenv("ELEVENLABS_KEY")
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID")
+
+    if not elevenlabs_key or not voice_id:
+        raise ValueError("❌ ElevenLabs 설정 오류")
+
+    headers = {
+        "Accept": "audio/mpeg",
+        "Content-Type": "application/json",
+        "xi-api-key": elevenlabs_key
+    }
+
+    data = {
+        "text": text,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {"stability": 0.75, "similarity_boost": 0.75}
+    }
+
+    try:
+        response = requests.post(
+            f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}",
+            headers=headers,
+            json=data,
+            timeout=60
+        )
+        response.raise_for_status()
+
+        with open(output_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024):
+                f.write(chunk)
+        log(f"✅ 음성 파일 저장: {output_path}")
+
+    except Exception as e:
+        log(f"❌ 음성 생성 실패: {str(e)}")
+        raise
+
+def get_audio_duration(audio_path):
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-show_entries', 'format=duration', 
+             '-of', 'default=noprint_wrappers=1:nokey=1', audio_path],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        return float(result.stdout.strip())
+    except Exception as e:
+        log(f"❌ 오디오 길이 측정 실패: {str(e)}")
+        raise
+
+def generate_subtitles(text, output_path, total_duration):
+    try:
+        lines = [line.strip() for line in text.split('.') if line.strip()]
+        num_segments = len(lines)
+        segment_duration = total_duration / num_segments if num_segments > 0 else total_duration
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            for i, line in enumerate(lines):
+                start_time = i * segment_duration
+                end_time = (i + 1) * segment_duration
+                if end_time > total_duration:
+                    end_time = total_duration
+
+                f.write(
+                    f"{i+1}\n"
+                    f"{datetime.utcfromtimestamp(start_time).strftime('%H:%M:%S,000')} --> "
+                    f"{datetime.utcfromtimestamp(end_time).strftime('%H:%M:%S,000')}\n"
+                    f"{line}\n\n"
+                )
+        log(f"✅ 자막 생성: {output_path}")
+
+    except Exception as e:
+        log(f"❌ 자막 생성 오류: {str(e)}")
+        raise
+
+def create_video(audio_path, subtitle_path, output_path, duration):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    font_path = os.path.normpath(os.path.join(script_dir, "../fonts/NotoSansCJKkr-Regular.otf"))
+    background_image = os.path.join(script_dir, "../background.jpg")
+
+    # ▼▼▼ 폰트 검증 추가 ▼▼▼
+    if not os.path.exists(font_path):
+        log(f"❌ 폰트 파일 누락: {font_path}")
+        raise FileNotFoundError(f"Font file not found: {font_path}")
+
+    if not os.path.exists(background_image):
+        log(f"⚠️ 배경 이미지 없음: {background_image}")
+        background_image = os.path.join(script_dir, "temp_background.png")
+        subprocess.run([
+            "ffmpeg", "-y", "-f", "lavfi", "-i", 
+            "color=c=blue:s=1280x720:d=1", 
+            background_image
+        ], check=True)
+
+    ffmpeg_cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1", "-i", background_image,
+        "-i", audio_path,
+        "-vf", f"subtitles='{subtitle_path}':force_style='FontName=Noto Sans CJK KR,FontSize=24'",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "23",
+        "-c:a", "aac", "-b:a", "128k",
+        "-t", str(duration),
+        "-pix_fmt", "yuv420p",
+        output_path
+    ]
+
+    try:
+        subprocess.run(ffmpeg_cmd, check=True)
+        log(f"✅ 영상 생성: {output_path}")
+    except subprocess.CalledProcessError as e:
+        log(f"❌ FFmpeg 오류: {str(e)}")
+        raise
+
+def upload_to_youtube(video_path, title, description):
+    creds = Credentials(
+        None,
+        refresh_token=os.getenv("GOOGLE_REFRESH_TOKEN"),
+        client_id=os.getenv("GOOGLE_CLIENT_ID"),
+        client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
+        token_uri="https://oauth2.googleapis.com/token"
+    )
+
+    if creds.expired:
+        creds.refresh(requests.Request())
+
+    youtube = build("youtube", "v3", credentials=creds)
+    media = MediaFileUpload(video_path, chunksize=-1, resumable=True)
+
+    video_body = {
+        "snippet": {
+            "title": title,
+            "description": description,
+            "categoryId": "28",
+            "tags": ["AI", "자동화", "유튜브"]
+        },
+        "status": {"privacyStatus": "public"}
+    }
+
+    try:
+        response = youtube.videos().insert(
+            part="snippet,status",
+            body=video_body,
+            media_body=media
+        ).execute()
+        return f"https://youtu.be/{response['id']}"
+    except Exception as e:
+        log(f"❌ 업로드 실패: {str(e)}")
+        raise
+
+def main():
+    log("🚀 자동화 시작")
+    try:
+        # 콘텐츠 생성 파이프라인
+        script = get_valid_openai_response("오늘 대한민국 주요 뉴스 3개를 요약한 쇼츠 대본 생성")
+        generate_voice(script, "output.mp3")
+        duration = get_audio_duration("output.mp3")
+        generate_subtitles(script, "subtitles.srt", duration)
+        create_video("output.mp3", "subtitles.srt", "final.mp4", duration)
+        
+        # YouTube 업로드
+        video_url = upload_to_youtube(
+            "final.mp4",
+            f"AI 생성 뉴스 요약 {datetime.now().strftime('%Y-%m-%d')}",
+            "AI가 자동으로 생성한 뉴스 요약 영상입니다"
+        )
+
+        if send_notification:
+            send_notification(f"✅ 업로드 완료!\n{video_url}")
         else:
-            logging.warning("테스트할 키워드가 없습니다.")
+            log("ℹ️ 알림 기능 사용 안함")
+
     except Exception as e:
-        logging.error(f"content_generator.py 테스트 중 오류: {e}")
+        log(f"❌ 치명적 오류: {str(e)}")
+        if send_notification:
+            send_notification(f"🚨 실패: {str(e)}")
+    finally:
+        log("🏁 프로세스 종료")
+
+if __name__ == "__main__":
+    main()
