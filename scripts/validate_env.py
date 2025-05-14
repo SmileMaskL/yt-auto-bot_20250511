@@ -75,43 +75,50 @@ def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64")
     else:
         return False
 
+def check_required_envs() -> bool:
+    """Check all required environment variables are set."""
+    required_envs = [
+        "OPENAI_API_KEYS_BASE64",
+        "GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET",
+        "GOOGLE_REFRESH_TOKEN",
+        "SLACK_API_TOKEN",
+        "SLACK_CHANNEL",
+    ]
+    
+    missing = [key for key in required_envs if not os.getenv(key)]
+    
+    if missing:
+        logging.error(f"🚨 Missing required environment variables: {', '.join(missing)}")
+        return False
+    logging.info("✅ All required environment variables are set.")
+    return True
+
 def main():
     logging.info("🚀 Starting environment variable validation...")
 
-    required_vars = [
-        ("OPENAI_API_KEYS_BASE64", True, False),
-        ("GOOGLE_CLIENT_ID", False, False),
-        ("GOOGLE_CLIENT_SECRET", True, False),
-        ("GOOGLE_REFRESH_TOKEN", True, False),
-    ]
+    # Step 1: Check required environment variables
+    logging.info("🔍 Checking required environment variables...")
+    if not check_required_envs():
+        sys.exit(1)
 
+    # Step 2: Validate structure of the OPENAI_API_KEYS_BASE64
+    if os.environ.get("OPENAI_API_KEYS_BASE64"):
+        if not validate_openai_keys_structure():
+            sys.exit(1)
+
+    # Step 3: Check optional environment variables
     optional_vars = [
         ("SLACK_API_TOKEN", True, True),
         ("SLACK_CHANNEL", False, True),
     ]
-
-    all_valid = True
-
-    logging.info("🔍 Checking required environment variables...")
-    for var_name, is_secret, can_be_empty in required_vars:
-        if not check_env_var(var_name, is_secret, can_be_empty):
-            all_valid = False
-
-    # Only check structure if base64 var is set
-    if os.environ.get("OPENAI_API_KEYS_BASE64"):
-        if not validate_openai_keys_structure():
-            all_valid = False
-
+    
     logging.info("📎 Checking optional environment variables...")
     for var_name, is_secret, can_be_empty in optional_vars:
         check_env_var(var_name, is_secret, can_be_empty)  # Optional vars do not affect overall validity
 
-    if all_valid:
-        logging.info("✅✅✅ All required environment variables and structures are valid.")
-        sys.exit(0)
-    else:
-        logging.error("❌❌❌ One or more critical environment variable checks failed.")
-        sys.exit(1)
+    logging.info("✅ All required environment variables and structures are valid.")
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()
