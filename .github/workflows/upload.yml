@@ -8,55 +8,70 @@ on:
 
 jobs:
   upload-video:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04  # 명시적 OS 버전 지정
 
     steps:
       - name: 🔄 Checkout Repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # 전체 커밋 히스토리 가져오기
+          fetch-depth: 0
 
-      - name: 🐍 Set up Python 3.10
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-          cache: 'pip'
-
-      - name: ✅ 시스템 종속성 설치
+      - name: 🛠️ FFmpeg 6 설치 (우회 방법)
         run: |
+          # 기존 FFmpeg 제거
+          sudo apt-get remove --purge ffmpeg* -y
+          
+          # PPA 대체 설치
+          sudo add-apt-repository ppa:savoury1/ffmpeg6 -y
           sudo apt-get update -y
           sudo apt-get install -y \
             ffmpeg \
-            libsm6 \
-            libxext6 \
-            libfontconfig1
+            libavcodec-extra \
+            libsdl2-2.0-0
+
+          # 버전 검증
+          FFMPEG_VERSION=$(ffmpeg -version | grep "ffmpeg version" | cut -d' ' -f3)
+          if [[ "$FFMPEG_VERSION" < "6.0" ]]; then
+            echo "::error::❌ FFmpeg 6.0+ 설치 실패 (현재: $FFMPEG_VERSION)"
+            exit 1
+          fi
+          echo "✅ FFmpeg $FFMPEG_VERSION 설치 완료"
 
       - name: ✅ 폰트 파일 검증
         run: |
-          echo "===== 폰트 경로 검증 ====="
           FONT_PATH="fonts/NotoSansCJKkr-Regular.otf"
           if [ ! -f "$FONT_PATH" ]; then
-            echo "::error::❌ 필수 폰트 파일이 존재하지 않습니다: $FONT_PATH"
+            echo "::error::❌ 필수 폰트 파일 누락: $FONT_PATH"
             exit 1
           else
             echo "✅ 폰트 파일 확인: $(realpath $FONT_PATH)"
           fi
 
-      - name: ✅ 환경변수 설정
+      - name: ✅ 환경변수 사전 검증
         run: |
-          echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
-          echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
-          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
-          echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
-          echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
+          # Base64 유효성 검사
+          if [ -z "${{ secrets.OPENAI_API_KEYS_BASE64 }}" ]; then
+            echo "::error::🚨 OPENAI_API_KEYS_BASE64 미설정"
+            exit 1
+          fi
+          echo -n "${{ secrets.OPENAI_API_KEYS_BASE64 }}" | base64 -d > /dev/null || {
+            echo "::error::🚨 Base64 디코딩 실패";
+            exit 1;
+          }
 
-      - name: 🛠️ Python 종속성 설치
+          # 파이썬 검증 스크립트 실행
+          python scripts/validate_env.py
+
+      - name: 🐍 Python 3.10 설정
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: 📦 Python 종속성 설치
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt --no-cache-dir
 
       - name: 🚀 메인 스크립트 실행
         run: python scripts/main.py
