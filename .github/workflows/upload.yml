@@ -2,8 +2,8 @@ name: 🤖 YouTube Video Automation
 
 on:
   schedule:
-    - cron: '0 */6 * * *' # Runs every 6 hours
-  workflow_dispatch:      # Allows manual triggering from the Actions tab
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
 
 jobs:
   upload-video:
@@ -16,6 +16,7 @@ jobs:
       GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
       SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
       SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+      FFMPEG_BINARY: /usr/bin/ffmpeg  # ⬅ moviepy에 ffmpeg 경로 명시
 
     steps:
       - name: 🔄 Checkout Repository
@@ -31,17 +32,24 @@ jobs:
           sudo cp "$FF_DIR/ffmpeg" /usr/bin/ffmpeg
           sudo chmod +x /usr/bin/ffmpeg
           ffmpeg -version
-          
+
           FFMPEG_VERSION_FULL=$(ffmpeg -version)
           echo "Full FFmpeg version output:"
           echo "$FFMPEG_VERSION_FULL"
-          
+
           FFMPEG_VERSION=$(echo "$FFMPEG_VERSION_FULL" | grep -oP 'ffmpeg version \K[^ ]+' | cut -d'.' -f1)
           if [ -z "$FFMPEG_VERSION" ] || [ "$FFMPEG_VERSION" -lt 6 ]; then
             echo "::error::❌ FFmpeg 6.0+ installation check failed. Detected major version: $FFMPEG_VERSION"
             exit 1
           fi
           echo "✅ FFmpeg major version $FFMPEG_VERSION installed successfully."
+
+      - name: 🛠️ (Backup) Install FFmpeg via APT
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          which ffmpeg
+          ffmpeg -version
 
       - name: 🐍 Set up Python 3.10
         uses: actions/setup-python@v5
@@ -58,6 +66,8 @@ jobs:
             echo "::error::❌ requirements.txt not found!"
             exit 1
           fi
+
+          echo "✅ Checking MoviePy FFmpeg path..."
           python -c "from moviepy.config import get_setting; print(f'MoviePy FFmpeg path: {get_setting('FFMPEG_BINARY')}')"
 
       - name: ✅ Verify Essential Files
