@@ -1,13 +1,13 @@
 # 필요한 라이브러리 명시
 openai>=1.0.0
-pytrends
-google-api-python-client
-google-auth
-google-auth-oauthlib
+pytrends==4.9.2
+google-api-python-client==2.123.0
+google-auth==2.29.0
+requests==2.32.2
+python-slugify==8.0.4
+python-dotenv==1.0.1
+slack-sdk==3.27.0
+elevenlabs==0.2.21
+ffmpeg-python==0.2.0
 moviepy==2.1.2
-imageio-ffmpeg
-Pillow
-elevenlabs
-slack_sdk
-requests
-ffmpeg-python
+Pillow==10.3.0
