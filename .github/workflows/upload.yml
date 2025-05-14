@@ -1,115 +1,51 @@
-name: 🤖 YouTube Video Automation
+name: 📹 Upload YouTube Video
 
 on:
-  schedule:
-    - cron: '0 */6 * * *'  # 매 6시간마다 실행
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # 매일 자정 실행
 
 jobs:
   upload-video:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     env:
       OPENAI_API_KEYS_BASE64: ${{ secrets.OPENAI_API_KEYS_BASE64 }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-      SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
-      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
-      FFMPEG_BINARY: /usr/bin/ffmpeg
+      GOOGLE_CLIENT_SECRET_BASE64: ${{ secrets.GOOGLE_CLIENT_SECRET_BASE64 }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
     steps:
-      - name: 🔄 Checkout Repository
-        uses: actions/checkout@v4
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
         with:
-          fetch-depth: 0
-
-      - name: 🛠️ Install FFmpeg (Stable Static Build)
-        run: |
-          curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz -o ffmpeg.tar.xz
-          tar -xf ffmpeg.tar.xz
-          FF_DIR=$(find . -type d -name "ffmpeg-*-amd64-static" | head -n 1)
-          sudo cp "$FF_DIR/ffmpeg" /usr/bin/ffmpeg
-          sudo chmod +x /usr/bin/ffmpeg
-
-          echo "🔍 Checking FFmpeg version..."
-          FFMPEG_VERSION_FULL=$(ffmpeg -version || echo "")
-          echo "$FFMPEG_VERSION_FULL"
-
-          FFMPEG_VERSION=$(echo "$FFMPEG_VERSION_FULL" | grep -oP 'ffmpeg version \K[^ ]+' | cut -d'.' -f1)
-          if [ -z "$FFMPEG_VERSION" ] || [ "$FFMPEG_VERSION" -lt 6 ]; then
-            echo "::error::❌ FFmpeg 6.0+ installation check failed. Detected major version: $FFMPEG_VERSION"
-            exit 1
-          fi
-          echo "✅ FFmpeg major version $FFMPEG_VERSION installed successfully."
-
-      - name: 🛠️ (Backup) Install FFmpeg via APT
-        if: failure()
-        run: |
-          echo "⚠️ Static build failed, trying APT fallback..."
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-          which ffmpeg
-          ffmpeg -version
-
-      - name: 🐍 Set up Python 3.10
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-          cache: 'pip'
+          python-version: '3.11'
 
       - name: 📦 Install Python Dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt --no-cache-dir
-          else
-            echo "::error::❌ requirements.txt not found!"
-            exit 1
-          fi
+          pip install -r requirements.txt
 
-          echo "✅ Setting MoviePy FFmpeg path manually..."
-          python -c "import moviepy.config as mpc; mpc.change_settings({'FFMPEG_BINARY': '/usr/bin/ffmpeg'}); print(f'MoviePy FFmpeg path: {mpc.get_setting(\"FFMPEG_BINARY\")}')"
-
-      - name: ✅ Verify Essential Files
+      - name: 🛠️ Install FFmpeg via APT (Recommended Stable)
         run: |
-          FONT_PATH="fonts/NotoSansCJKkr-Regular.otf"
-          if [ ! -f "$FONT_PATH" ]; then
-            echo "::error::❌ Required font file not found: $FONT_PATH"
-            exit 1
-          else
-            echo "✅ Font file verified: $(readlink -f $FONT_PATH)"
-          fi
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          echo "✅ FFmpeg installed:"
+          ffmpeg -version
 
-          BACKGROUND_PATH="background.jpg"
-          if [ ! -f "$BACKGROUND_PATH" ]; then
-            echo "::warning::⚠️ Background image not found: $BACKGROUND_PATH. Script might use a default color."
-          else
-            echo "✅ Background image verified: $(readlink -f $BACKGROUND_PATH)"
-          fi
-
-      - name: 🛡️ Validate Environment Variables & Configuration
+      - name: 🔐 Decode and Set Environment Variables
         run: |
-          if [ ! -f scripts/validate_env.py ]; then
-            echo "::error::❌ Missing validation script: scripts/validate_env.py"
-            exit 1
-          fi
-          python scripts/validate_env.py
+          echo "$OPENAI_API_KEYS_BASE64" | base64 -d > openai_keys.json
+          echo "$GOOGLE_CLIENT_SECRET_BASE64" | base64 -d > client_secret.json
+          echo "✅ Secrets decoded successfully"
 
-      - name: 🚀 Run Main Automation Script
+      - name: 🚀 Run Main Script
         run: |
-          if [ ! -f scripts/main.py ]; then
-            echo "::error::❌ Missing main script: scripts/main.py"
-            exit 1
-          fi
           python scripts/main.py
 
-      - name: 📤 Upload Logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: automation-logs
-          path: |
-            *.log
-            scripts/*.log
-          retention-days: 7
+      - name: 🧹 Clean Up
+        run: |
+          rm -f openai_keys.json client_secret.json
