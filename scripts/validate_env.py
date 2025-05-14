@@ -1,8 +1,10 @@
+# scripts/validate_env.py
+
 import os
 import sys
-import json
-import base64
 import logging
+import base64
+import json
 
 # 로깅 설정
 logging.basicConfig(
@@ -15,7 +17,7 @@ logging.basicConfig(
 def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = False) -> bool:
     """Check if a single environment variable is set correctly."""
     var_value = os.environ.get(var_name)
-
+    
     if var_value is None:
         logging.error(f"🚨 Environment variable '{var_name}' is NOT SET.")
         return False
@@ -26,8 +28,7 @@ def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = Fa
 
     display_value = (
         f"'{var_value[:2]}...{var_value[-2:]}' (length: {len(var_value)})"
-        if is_secret and var_value
-        else f"'{var_value}'"
+        if is_secret and var_value else f"'{var_value}'"
     )
     logging.info(f"✅ Environment variable '{var_name}' is SET. Value: {display_value}")
     return True
@@ -97,28 +98,6 @@ def check_required_envs() -> bool:
     return True
 
 
-def check_env_variable(var_name: str):
-    """Check if a given environment variable is set."""
-    if var_name not in os.environ:
-        logging.error(f"🚨 Missing environment variable {var_name}")
-        sys.exit(1)
-
-
-def validate_environment():
-    """Validates all environment variables."""
-    required_env_vars = [
-        'OPENAI_API_KEYS_BASE64',
-        'GOOGLE_CLIENT_SECRET_BASE64',
-        'ELEVENLABS_API_KEY',
-        'SLACK_WEBHOOK_URL'
-    ]
-    
-    for var in required_env_vars:
-        check_env_variable(var)
-
-    logging.info("✅ All required environment variables are set.")
-
-
 def main():
     logging.info("🚀 Starting environment variable validation...")
 
@@ -135,7 +114,5 @@ def main():
     logging.info("✅ All required environment variables and structures are valid.")
     sys.exit(0)
 
-
 if __name__ == "__main__":
-    validate_environment()
     main()
