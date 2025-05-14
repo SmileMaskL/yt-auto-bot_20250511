@@ -5,7 +5,9 @@ import tempfile
 from moviepy.editor import ImageClip, AudioFileClip, concatenate_videoclips
 from scripts.utils import create_background_image, get_font_path
 
+# 로그 설정
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 def create_video_with_ffmpeg(
     audio_path: str,
@@ -71,6 +73,7 @@ def create_video_with_ffmpeg(
         logger.error(f"[create_video_with_ffmpeg] 오류 발생: {e}")
         raise
 
+
 def main():
     try:
         logger.info("🎞 영상 생성 파이프라인 시작...")
@@ -113,6 +116,7 @@ def main():
     except Exception as e:
         logger.error(f"[main] 전체 파이프라인 실행 중 오류 발생: {e}")
         raise
+
 
 if __name__ == "__main__":
     main()
