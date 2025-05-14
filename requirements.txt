@@ -1,23 +1,4 @@
-# Core Packages
-python==3.10.12
-openai>=1.14.0
-google-api-python-client>=2.123.0
-
-# Video Processing
-moviepy>=2.1.0
-ffmpeg-python>=0.2.0
-pydub>=0.25.1
-
-# Utilities
-tenacity>=8.2.3
-python-dotenv>=1.0.0
-loguru>=0.7.2
-
-# System
-psutil>=5.9.8
-pyyaml>=6.0.1
-tqdm>=4.66.2
-
-# Machine Learning
-torch>=2.3.0+cu121
-transformers>=4.40.0
+google-api-python-client==2.125.0
+moviepy==2.0.0.dev2
+requests==2.31.0
+python-dotenv==1.0.0
