@@ -13,80 +13,50 @@ jobs:
     steps:
       - name: 🔄 Checkout Repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # 전체 커밋 히스토리 가져오기
 
-      - name: 🐍 Set up Python
+      - name: 🐍 Set up Python 3.10
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
+          cache: 'pip'
 
-      - name: ✅ 환경 변수 설정
-        run: |
-          echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
-          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
-          echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
-          echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
-          echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
-          echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
-          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
-          
-      - name: ✅ 설치 전 시스템 라이브러리 업데이트
+      - name: ✅ 시스템 종속성 설치
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y ffmpeg
+          sudo apt-get install -y \
+            ffmpeg \
+            libsm6 \
+            libxext6 \
+            libfontconfig1
 
-      - name: ✅ API 키 사전 검증
+      - name: ✅ 폰트 파일 검증
         run: |
-          echo "===== API 키 사전 검증 ====="
-          # 키가 설정되었는지 확인 (내용 노출 없이)
-          if [ -z "${{ secrets.OPENAI_API_KEYS_BASE64 }}" ]; then
-            echo "❌ OPENAI_API_KEYS_BASE64 시크릿이 설정되지 않았습니다."
+          echo "===== 폰트 경로 검증 ====="
+          FONT_PATH="fonts/NotoSansCJKkr-Regular.otf"
+          if [ ! -f "$FONT_PATH" ]; then
+            echo "::error::❌ 필수 폰트 파일이 존재하지 않습니다: $FONT_PATH"
             exit 1
           else
-            echo "✅ OPENAI_API_KEYS_BASE64 시크릿이 설정되었습니다."
+            echo "✅ 폰트 파일 확인: $(realpath $FONT_PATH)"
           fi
-          
-          # 추가 디버깅 스크립트
-          echo "✅ 추가 검증 스크립트 실행"
-          python -c "
-import os, base64, json, sys
 
-# 시크릿 존재 여부 확인 함수
-def check_secret(name):
-    value = os.environ.get(name)
-    if not value:
-        print(f'❌ {name} 환경 변수가 설정되지 않았습니다.')
-        return False
-    print(f'✅ {name} 환경 변수가 설정되었습니다.')
-    return True
+      - name: ✅ 환경변수 설정
+        run: |
+          echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
+          echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
+          echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
+          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
+          echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
+          echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
 
-# OpenAI API 키 검증
-openai_keys_b64 = os.environ.get('OPENAI_API_KEYS_BASE64')
-if openai_keys_b64:
-    try:
-        # base64 디코딩 시도
-        decoded = base64.b64decode(openai_keys_b64).decode('utf-8')
-        keys = json.loads(decoded)
-        if isinstance(keys, list) and len(keys) > 0:
-            print(f'✅ 총 {len(keys)}개의 OpenAI API 키가 로드되었습니다.')
-        else:
-            print('❌ OpenAI API 키 목록이 비어있거나 올바른 형식이 아닙니다.')
-    except Exception as e:
-        print(f'❌ OpenAI API 키 디코딩 오류: {str(e)}')
-        sys.exit(1)
-        
-# 필수 시크릿 확인
-check_secret('GOOGLE_CLIENT_ID')
-check_secret('GOOGLE_CLIENT_SECRET')
-check_secret('GOOGLE_REFRESH_TOKEN')
-check_secret('ELEVENLABS_KEY')
-check_secret('ELEVENLABS_VOICE_ID')
-"
-
-      - name: 🛠️ Install Dependencies
+      - name: 🛠️ Python 종속성 설치
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🚀 Run Main Script
+      - name: 🚀 메인 스크립트 실행
         run: python scripts/main.py
