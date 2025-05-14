@@ -29,11 +29,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 🛠️ Install FFmpeg via APT (Recommended Stable)
+      - name: 🛠️ Install FFmpeg via APT
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          echo "✅ FFmpeg installed:"
           ffmpeg -version
 
       - name: 🔐 Decode and Set Environment Variables
@@ -42,7 +41,12 @@ jobs:
           echo "$GOOGLE_CLIENT_SECRET_BASE64" | base64 -d > client_secret.json
           echo "✅ Secrets decoded successfully"
 
-      - name: 🚀 Run Main Script with PYTHONPATH
+      - name: ✅ Validate Environment Variables
+        run: |
+          export PYTHONPATH=.
+          python scripts/validate_env.py
+
+      - name: 🚀 Run Main Script
         run: |
           export PYTHONPATH=.
           python scripts/main.py
