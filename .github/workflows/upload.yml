@@ -4,7 +4,7 @@ name: 🤖 YouTube Video Automation
 on:
   schedule:
     - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch:  # 수동 실행 트리거
 
 jobs:
   upload-video:
@@ -14,27 +14,74 @@ jobs:
       - name: 🔄 Checkout Repository
         uses: actions/checkout@v3
 
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
       - name: ✅ 환경 변수 설정
         run: |
           echo "OPENAI_API_KEYS_BASE64=${{ secrets.OPENAI_API_KEYS_BASE64 }}" >> $GITHUB_ENV
           echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> $GITHUB_ENV
-          echo "SLACK_WEBHOOK_URL=${{ secrets.SLACK_WEBHOOK_URL }}" >> $GITHUB_ENV
-          echo "ELEVENLABS_API_KEY=${{ secrets.ELEVENLABS_API_KEY }}" >> $GITHUB_ENV
-          echo "YOUTUBE_REFRESH_TOKEN=${{ secrets.YOUTUBE_REFRESH_TOKEN }}" >> $GITHUB_ENV
+          echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}" >> $GITHUB_ENV
+          echo "GOOGLE_REFRESH_TOKEN=${{ secrets.GOOGLE_REFRESH_TOKEN }}" >> $GITHUB_ENV
+          echo "SLACK_API_TOKEN=${{ secrets.SLACK_API_TOKEN }}" >> $GITHUB_ENV
+          echo "SLACK_CHANNEL=${{ secrets.SLACK_CHANNEL }}" >> $GITHUB_ENV
+          echo "ELEVENLABS_KEY=${{ secrets.ELEVENLABS_KEY }}" >> $GITHUB_ENV
+          echo "ELEVENLABS_VOICE_ID=${{ secrets.ELEVENLABS_VOICE_ID }}" >> $GITHUB_ENV
+          
+      - name: ✅ 설치 전 시스템 라이브러리 업데이트
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y ffmpeg
 
       - name: ✅ API 키 사전 검증
         run: |
           echo "===== API 키 사전 검증 ====="
+          # 키가 설정되었는지 확인 (내용 노출 없이)
           if [ -z "${{ secrets.OPENAI_API_KEYS_BASE64 }}" ]; then
             echo "❌ OPENAI_API_KEYS_BASE64 시크릿이 설정되지 않았습니다."
             exit 1
+          else
+            echo "✅ OPENAI_API_KEYS_BASE64 시크릿이 설정되었습니다."
           fi
+          
+          # 추가 디버깅 스크립트
+          echo "✅ 추가 검증 스크립트 실행"
+          python -c "
+import os, base64, json, sys
 
-          python -c "import os, base64, json
-decoded = base64.b64decode(os.environ['OPENAI_API_KEYS_BASE64']).decode('utf-8')
-keys = json.loads(decoded)
-assert isinstance(keys, list) and keys, '❌ 유효한 키 리스트가 아닙니다.'
-print(f'✅ 총 {len(keys)}개의 API 키가 로드되었습니다.')"
+# 시크릿 존재 여부 확인 함수
+def check_secret(name):
+    value = os.environ.get(name)
+    if not value:
+        print(f'❌ {name} 환경 변수가 설정되지 않았습니다.')
+        return False
+    print(f'✅ {name} 환경 변수가 설정되었습니다.')
+    return True
+
+# OpenAI API 키 검증
+openai_keys_b64 = os.environ.get('OPENAI_API_KEYS_BASE64')
+if openai_keys_b64:
+    try:
+        # base64 디코딩 시도
+        decoded = base64.b64decode(openai_keys_b64).decode('utf-8')
+        keys = json.loads(decoded)
+        if isinstance(keys, list) and len(keys) > 0:
+            print(f'✅ 총 {len(keys)}개의 OpenAI API 키가 로드되었습니다.')
+        else:
+            print('❌ OpenAI API 키 목록이 비어있거나 올바른 형식이 아닙니다.')
+    except Exception as e:
+        print(f'❌ OpenAI API 키 디코딩 오류: {str(e)}')
+        sys.exit(1)
+        
+# 필수 시크릿 확인
+check_secret('GOOGLE_CLIENT_ID')
+check_secret('GOOGLE_CLIENT_SECRET')
+check_secret('GOOGLE_REFRESH_TOKEN')
+check_secret('ELEVENLABS_KEY')
+check_secret('ELEVENLABS_VOICE_ID')
+"
 
       - name: 🛠️ Install Dependencies
         run: |
