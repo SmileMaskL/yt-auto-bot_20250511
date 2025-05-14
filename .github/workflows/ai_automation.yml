@@ -1,0 +1,64 @@
+name: 🤖 AI Video Factory 3.1
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # 4시간 주기 트리거
+  workflow_dispatch:
+    inputs:
+      emergency_mode:
+        description: "긴급 모드 활성화 (true/false)"
+        required: false
+        default: 'false'
+
+env:
+  TZ: Asia/Seoul
+  PYTHON_VERSION: '3.10.12'
+
+jobs:
+  video-production:
+    name: 🎬 AI 비디오 생산 라인
+    runs-on: ubuntu-22.04
+    timeout-minutes: 55
+
+    steps:
+    - name: 🔄 저장소 클론 (전체 히스토리)
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 🔐 보안 검증
+      run: |
+        if [ ! -f "fonts/NotoSansCJKkr-Regular.otf" ]; then
+          echo "::error::❌ 폰트 파일 누락"
+          exit 1
+        fi
+        echo "✅ 필수 자원 검증 완료"
+
+    - name: 🐍 Python 환경 설정
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: 📦 종속성 설치
+      run: |
+        pip install torch==2.3.0+cu121 \
+          --extra-index-url https://download.pytorch.org/whl/cu121
+        pip install -r requirements.txt
+
+    - name: 🚀 AI 파이프라인 실행
+      env:
+        OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
+        YOUTUBE_CREDENTIALS: ${{ secrets.YOUTUBE_TOKEN }}
+      run: |
+        python scripts/main.py \
+          --quality 1080p \
+          --auto-retry 5 \
+          --emergency ${{ inputs.emergency_mode }}
+
+    - name: 📊 실행 리포트 생성
+      if: always()
+      run: |
+        python scripts/notifier.py \
+          --status ${{ job.status }} \
+          --log automation.log
