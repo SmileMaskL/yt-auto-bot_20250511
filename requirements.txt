@@ -19,3 +19,8 @@ requests>=2.31.0
 # No Python wrapper for ffmpeg (like ffmpeg-python) is directly used by the main.py's video creation.
 # MoviePy and its dependencies (like Pillow, imageio) are not included as main.py uses direct ffmpeg.
 # ElevenLabs is not included as main.py uses OpenAI TTS.
+
+#TEST
+moviepy
+pytest
+flake8
