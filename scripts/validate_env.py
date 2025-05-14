@@ -97,6 +97,28 @@ def check_required_envs() -> bool:
     return True
 
 
+def check_env_variable(var_name: str):
+    """Check if a given environment variable is set."""
+    if var_name not in os.environ:
+        logging.error(f"🚨 Missing environment variable {var_name}")
+        sys.exit(1)
+
+
+def validate_environment():
+    """Validates all environment variables."""
+    required_env_vars = [
+        'OPENAI_API_KEYS_BASE64',
+        'GOOGLE_CLIENT_SECRET_BASE64',
+        'ELEVENLABS_API_KEY',
+        'SLACK_WEBHOOK_URL'
+    ]
+    
+    for var in required_env_vars:
+        check_env_variable(var)
+
+    logging.info("✅ All required environment variables are set.")
+
+
 def main():
     logging.info("🚀 Starting environment variable validation...")
 
@@ -115,4 +137,5 @@ def main():
 
 
 if __name__ == "__main__":
+    validate_environment()
     main()
