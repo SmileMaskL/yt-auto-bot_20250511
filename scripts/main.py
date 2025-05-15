@@ -1,99 +1,78 @@
+# scripts/main.py
+
 import os
 import sys
 import logging
-from .content_generator import ContentGenerator, OpenAIKeyManager
-from .create_video import create_video_from_audio_and_text  # Assuming this function exists in create_video.py
-from .notifier import send_notification  # Assuming notifier is properly configured
+from scripts.content_generator import ContentGenerator, OpenAIKeyManager
+from scripts.create_video import create_video_from_audio_and_text
 
-# --- Configuration ---
+try:
+    from scripts.notifier import send_notification
+except ImportError:
+    def send_notification(msg): pass  # 알림 함수가 없을 경우 무시
+
+# --- 설정 ---
 LOG_FILE_PATH = "automation_main.log"
-
-# Setting up logging to both console and file with proper encoding and format
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] [%(name)s:%(lineno)d] %(message)s",
     handlers=[
-        logging.FileHandler(LOG_FILE_PATH, mode='a', encoding='utf-8'),
+        logging.FileHandler(LOG_FILE_PATH, mode="a", encoding="utf-8"),
         logging.StreamHandler(sys.stdout)
     ]
 )
-
 logger = logging.getLogger(__name__)
 
-# OpenAI setup
-# Create an instance of OpenAIKeyManager to manage the OpenAI API keys from GitHub secrets
+# --- OpenAI API 키 관리 및 ContentGenerator 인스턴스 생성 ---
 openai_key_manager = OpenAIKeyManager(env_var_name="OPENAI_API_KEYS_BASE64")
 content_gen = ContentGenerator(key_manager=openai_key_manager, model="gpt-4-turbo")
 
-# Function to generate the YouTube script from a given topic
 def generate_youtube_script(topic: str) -> str:
-    """Generates a YouTube script for a given topic."""
+    """주어진 주제로 YouTube 스크립트를 생성"""
     system_prompt = (
         "Create a YouTube shorts script that is concise, engaging, and informative. "
         "Make sure it is structured in short, impactful sentences, and ends with punctuation."
     )
     user_prompt = f"Create a YouTube shorts script about the following topic: '{topic}'"
-    
+
     try:
-        # Generate the script text using the content generator
-        script_text = content_gen.generate_text(prompt=user_prompt, system_message=system_prompt)
-        logger.info(f"📜 Script generated successfully (length: {len(script_text)}).")
-        return script_text
+        script = content_gen.generate_text(prompt=user_prompt, system_message=system_prompt)
+        logger.info(f"📜 스크립트 생성 완료 (길이: {len(script)}자)")
+        return script
     except Exception as e:
-        logger.error(f"❌ Script generation failed: {e}")
+        logger.exception("❌ 스크립트 생성 중 오류 발생")
         raise
 
-# Function to create a video from the generated script and audio file
-def create_video_from_script_and_audio(script_text: str, audio_file_path: str) -> str:
-    """Generates a YouTube video from a script and audio file."""
-    logger.info(f"🎬 Creating video from script and audio: {audio_file_path}")
-    
-    # Define the output video file path
-    video_output_path = "output_video.mp4"  # Static output path
-    
+def create_video_from_script_and_audio(script_text: str, audio_path: str) -> str:
+    """스크립트와 오디오를 기반으로 영상 생성"""
+    output_path = "output_video.mp4"
     try:
-        # Call the external function to create video from the script and audio
-        create_video_from_audio_and_text(script_text, audio_file_path, video_output_path)
-        logger.info(f"✅ Video created successfully at {video_output_path}")
-        return video_output_path
+        create_video_from_audio_and_text(script_text, audio_path, output_path)
+        logger.info(f"✅ 비디오 생성 완료: {output_path}")
+        return output_path
     except Exception as e:
-        logger.error(f"❌ Video creation failed: {e}")
+        logger.exception("❌ 비디오 생성 실패")
         raise
 
-# Main function to control the complete workflow from script generation to video creation
 def main():
-    """Main function to control the workflow."""
-    topic = "The Benefits of Artificial Intelligence"  # You can change the topic dynamically
-    logger.info(f"🚀 Starting automation for topic: '{topic}'")
-    
+    topic = "The Benefits of Artificial Intelligence"
+    audio_file = "audio_output.mp3"
+
+    logger.info(f"🚀 주제 시작: {topic}")
     try:
-        # Generate the YouTube script for the topic
-        script_text = generate_youtube_script(topic)
-        
-        # Path to the pre-generated audio file (you could integrate text-to-speech here)
-        audio_file_path = "audio_output.mp3"
-        
-        # Ensure the audio file exists before proceeding
-        if not os.path.exists(audio_file_path):
-            logger.error(f"❌ Audio file not found: {audio_file_path}")
-            raise FileNotFoundError(f"Audio file not found at {audio_file_path}")
-        
-        # Create the video from the script and audio
-        video_output_path = create_video_from_script_and_audio(script_text, audio_file_path)
-        
-        # Log the successful video creation
-        logger.info(f"✅ Video creation completed. Output: {video_output_path}")
-    
+        script = generate_youtube_script(topic)
+
+        if not os.path.exists(audio_file):
+            raise FileNotFoundError(f"❌ 오디오 파일이 존재하지 않음: {audio_file}")
+
+        video_path = create_video_from_script_and_audio(script, audio_file)
+
+        logger.info(f"🎉 모든 과정 완료. 출력 파일: {video_path}")
+
     except Exception as e:
-        logger.error(f"❌ Automation failed: {e}")
-        
-        # If send_notification is available, send an alert notification
-        if send_notification:
-            send_notification(f"🚨 Automation failed: {e}")
-        
-        # Exit with a failure code
+        logger.error(f"❌ 전체 자동화 실패: {e}")
+        send_notification(f"🚨 자동화 실패: {e}")
         sys.exit(1)
 
-# Ensure the script runs only when executed directly (not imported)
 if __name__ == "__main__":
     main()
