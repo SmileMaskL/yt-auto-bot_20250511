@@ -1,113 +1,33 @@
-# scripts/validate_env.py
-
 import os
-import sys
-import logging
-import base64
 import json
-
-# 로깅 설정
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] [validate_env] %(message)s",
-    handlers=[logging.StreamHandler(sys.stdout)],
-    force=True
-)
-
-# 필수 환경 변수 목록 (GitHub Secrets 기반)
-REQUIRED_ENV_VARS = [
-    "OPENAI_API_KEYS_BASE64",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "GOOGLE_REFRESH_TOKEN",
-    "GOOGLE_TOKEN_JSON",
-    "SLACK_API_TOKEN",
-    "SLACK_CHANNEL",
-    "SLACK_WEBHOOK_URL",
-    "ELEVENLABS_API_KEY",
-    "ELEVENLABS_VOICE_ID"
-]
-
-def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = False) -> bool:
-    """Check if a single environment variable is set correctly."""
-    var_value = os.environ.get(var_name)
-
-    if var_value is None:
-        logging.error(f"🚨 Environment variable '{var_name}' is NOT SET.")
-        return False
-
-    if not can_be_empty and not var_value.strip():
-        logging.error(f"🚨 Environment variable '{var_name}' is SET but EMPTY.")
-        return False
-
-    display_value = (
-        f"'{var_value[:2]}...{var_value[-2:]}' (length: {len(var_value)})"
-        if is_secret and var_value else f"'{var_value}'"
-    )
-    logging.info(f"✅ Environment variable '{var_name}' is SET. Value: {display_value}")
-    return True
+import base64
 
 
-def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64") -> bool:
-    """Validates OPENAI_API_KEYS_BASE64 contains valid base64-encoded JSON list of sk- keys."""
-    encoded_keys = os.environ.get(env_var_name, "").strip()
+def validate_env_variables() -> bool:
+    required_envs = [
+        "OPENAI_API_KEYS_BASE64",
+        "ELEVENLABS_API_KEY",
+        "SLACK_WEBHOOK_URL",
+    ]
 
-    if not encoded_keys:
-        logging.error(f"🚨 {env_var_name} is not set or empty. Cannot validate structure.")
-        return False
+    for key in required_envs:
+        if not os.getenv(key):
+            print(f"❌ 환경 변수 누락: {key}")
+            return False
 
-    logging.info(f"🔍 Validating structure of {env_var_name}...")
-
+    # OPENAI API KEY 형식 검사
     try:
-        decoded_bytes = base64.b64decode(encoded_keys, validate=True)
-        decoded_str = decoded_bytes.decode("utf-8")
-        parsed_keys = json.loads(decoded_str)
+        base64_str = os.getenv("OPENAI_API_KEYS_BASE64")
+        decoded = base64.b64decode(base64_str).decode("utf-8")
+        json.loads(decoded)
     except Exception as e:
-        logging.error(f"🚨 Failed to decode or parse {env_var_name}: {e}")
+        print(f"❌ OPENAI_API_KEYS_BASE64 디코딩 오류: {e}")
         return False
 
-    if not isinstance(parsed_keys, list) or not parsed_keys:
-        logging.error(f"🚨 Decoded {env_var_name} is not a non-empty list.")
-        return False
-
-    valid_keys = True
-    for i, key in enumerate(parsed_keys):
-        if not isinstance(key, str) or not key.startswith("sk-"):
-            logging.error(f"🚨 Key at index {i} is invalid: {key}")
-            valid_keys = False
-        elif len(key) < 20:
-            logging.warning(f"⚠️ Key at index {i} seems unusually short.")
-
-    if valid_keys:
-        logging.info(f"🔐 Successfully validated structure: {len(parsed_keys)} keys found.")
-    return valid_keys
-
-
-def check_required_envs() -> bool:
-    """Check all required environment variables are set."""
-    missing = [key for key in REQUIRED_ENV_VARS if not os.getenv(key)]
-
-    if missing:
-        logging.error(f"🚨 Missing required environment variables: {', '.join(missing)}")
-        return False
-
-    logging.info("✅ All required environment variables are set.")
+    print("✅ 환경 변수 검증 완료")
     return True
 
-
-def main():
-    logging.info("🚀 Starting environment variable validation...")
-
-    # Step 1: Check required environment variables
-    if not check_required_envs():
-        sys.exit(1)
-
-    # Step 2: Validate structure of the OPENAI_API_KEYS_BASE64
-    if not validate_openai_keys_structure():
-        sys.exit(1)
-
-    logging.info("✅ All required environment variables and structures are valid.")
-    sys.exit(0)
 
 if __name__ == "__main__":
-    main()
+    result = validate_env_variables()
+    exit(0 if result else 1)
