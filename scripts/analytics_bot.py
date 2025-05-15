@@ -2,10 +2,7 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
 def analyze_channel_performance():
-    creds = Credentials.from_authorized_user_file('token.json', [
-        'https://www.googleapis.com/auth/yt-analytics.readonly'
-    ])
-
+    creds = Credentials.from_authorized_user_file('token.json', ['https://www.googleapis.com/auth/yt-analytics.readonly'])
     youtube_analytics = build('youtubeAnalytics', 'v2', credentials=creds)
 
     response = youtube_analytics.reports().query(
