@@ -14,6 +14,13 @@ jobs:
       GOOGLE_CLIENT_SECRET_BASE64: ${{ secrets.GOOGLE_CLIENT_SECRET_BASE64 }}
       ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+      GOOGLE_TOKEN_JSON: ${{ secrets.GOOGLE_TOKEN_JSON }}
+      SLACK_API_TOKEN: ${{ secrets.SLACK_API_TOKEN }}
+      SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
 
     steps:
       - name: ⬇️ Checkout Repository
@@ -44,12 +51,12 @@ jobs:
 
       - name: 🧑‍💻 Validate Environment Variables
         run: |
-          python3 scripts/validate_env.py  # 환경 변수를 검증하는 스크립트를 실행
+          python3 scripts/validate_env.py
 
       - name: 🚀 Run Main Script with PYTHONPATH
         run: |
           export PYTHONPATH=.
-          python scripts/main.py  # 메인 스크립트 실행
+          python scripts/main.py
 
       - name: 🧹 Clean Up
         run: |
