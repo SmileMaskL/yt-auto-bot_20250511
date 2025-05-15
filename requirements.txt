@@ -1,26 +1,9 @@
-# requirements.txt
-
-# OpenAI
-openai>=1.10.0 # Ensure a recent version for latest features and fixes
-
-# Google API Client for YouTube
-google-api-python-client>=2.80.0
-google-auth>=2.20.0
-google-auth-httplib2>=0.1.0 # Often a dependency
-google-auth-oauthlib>=0.7.0 # For local auth flow if needed, though script uses refresh token
-
-# For notifications (Optional, remove if not using Slack)
-slack_sdk>=3.20.0
-
-# Standard libraries (often good to pin for consistency)
-requests>=2.31.0
-
-# Note: ffmpeg itself is a system dependency, installed in Dockerfile/Actions.
-# No Python wrapper for ffmpeg (like ffmpeg-python) is directly used by the main.py's video creation.
-# MoviePy and its dependencies (like Pillow, imageio) are not included as main.py uses direct ffmpeg.
-# ElevenLabs is not included as main.py uses OpenAI TTS.
-
-#TEST
+openai
+elevenlabs
 moviepy
-pytest
-flake8
+Pillow
+google-api-python-client
+google-auth
+google-auth-oauthlib
+pytrends
+slack_sdk
