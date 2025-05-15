@@ -1,40 +1,51 @@
+# scripts/main.py
+
+import sys
 import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import logging
-import json
+from scripts.utils.error_handler import RetryableError
+from scripts.validate_env import validate_environment
 from scripts.content_generator import ContentGenerator
 from scripts.voice_generator import generate_voice
 from scripts.create_video import create_video_from_audio_and_text
 from scripts.youtube_uploader import upload_video_to_youtube
-from scripts.notifier import send_notification
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Optional Slack 알림 모듈
+try:
+    from scripts.notifier import send_notification
+except ImportError:
+    send_notification = None
 
 def main():
+    logging.basicConfig(level=logging.INFO)
+
     try:
-        prompt = "오늘의 인공지능 뉴스 요약을 만들어줘."
-        content_gen = ContentGenerator(os.environ['OPENAI_API_KEYS_BASE64'])
-        text = content_gen.generate_text(prompt)
+        logging.info("✅ 환경 변수 검증 중...")
+        validate_environment()
 
-        audio_path = generate_voice(text)
-        video_path = create_video_from_audio_and_text(audio_path, text)
+        logging.info("✍️ 텍스트 콘텐츠 생성 중...")
+        generator = ContentGenerator()
+        content = generator.generate()
 
-        creds = json.loads(os.environ['GOOGLE_TOKEN_JSON'])
-        video_id = upload_video_to_youtube("AI 뉴스 요약", text, video_path, creds)
+        logging.info("🎤 음성 생성 중...")
+        audio_path = generate_voice(content)
 
-        send_notification(
-            f"🎉 유튜브 업로드 성공! https://youtu.be/{video_id}",
-            os.environ['SLACK_API_TOKEN'],
-            os.environ['SLACK_CHANNEL']
-        )
+        logging.info("🎞️ 영상 생성 중...")
+        video_path = create_video_from_audio_and_text(content, audio_path)
 
-    except Exception as e:
-        logger.error(f"🚨 전체 실행 실패: {e}")
-        send_notification(
-            f"🚨 자동화 실패: {e}",
-            os.environ.get('SLACK_API_TOKEN', ''),
-            os.environ.get('SLACK_CHANNEL', '')
-        )
+        logging.info("📤 YouTube에 업로드 중...")
+        video_url = upload_video_to_youtube(video_path, content)
+
+        if send_notification:
+            send_notification(f"✅ 업로드 성공: {video_url}")
+
+    except RetryableError as e:
+        logging.error(f"❌ 복구 불가 오류 발생: {str(e)}")
+        if send_notification:
+            send_notification(f"🚨 오류 발생: {str(e)}")
+        raise
 
 if __name__ == "__main__":
     main()
