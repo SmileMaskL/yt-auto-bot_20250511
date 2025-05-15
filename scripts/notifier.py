@@ -1,23 +1,14 @@
-# scripts/notifier.py
-
-import os
 import logging
-import requests
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-def send_notification(message: str) -> None:
-    """Slack Webhook을 통해 메시지를 전송합니다."""
-    webhook_url = os.getenv("SLACK_WEBHOOK_URL")
-    if not webhook_url:
-        logger.warning("⚠️ SLACK_WEBHOOK_URL 환경변수가 설정되지 않음. Slack 알림 생략.")
-        return
-
+def send_notification(message: str, slack_token: str, slack_channel: str):
+    client = WebClient(token=slack_token)
     try:
-        response = requests.post(webhook_url, json={"text": message})
-        if response.status_code == 200:
-            logger.info("✅ Slack 알림 전송 성공")
-        else:
-            logger.error(f"❌ Slack 알림 실패: {response.status_code} - {response.text}")
-    except Exception as e:
-        logger.exception(f"❌ Slack 알림 전송 중 예외 발생: {e}")
+        response = client.chat_postMessage(channel=slack_channel, text=message)
+        logger.info("✅ Slack notification sent")
+    except SlackApiError as e:
+        logger.error(f"❌ Slack notification failed: {e.response['error']}")
