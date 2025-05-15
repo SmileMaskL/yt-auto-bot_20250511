@@ -10,5 +10,4 @@ class ContentGenerator:
         ]
 
     def generate(self) -> str:
-        # 향후 OpenAI API 연결 가능 (예: GPT 기반 스크립트 생성)
         return random.choice(self.topics)
