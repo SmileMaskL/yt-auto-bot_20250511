@@ -14,10 +14,24 @@ logging.basicConfig(
     force=True
 )
 
+# 필수 환경 변수 목록 (GitHub Secrets 기반)
+REQUIRED_ENV_VARS = [
+    "OPENAI_API_KEYS_BASE64",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "GOOGLE_REFRESH_TOKEN",
+    "GOOGLE_TOKEN_JSON",
+    "SLACK_API_TOKEN",
+    "SLACK_CHANNEL",
+    "SLACK_WEBHOOK_URL",
+    "ELEVENLABS_API_KEY",
+    "ELEVENLABS_VOICE_ID"
+]
+
 def check_env_var(var_name: str, is_secret: bool = True, can_be_empty: bool = False) -> bool:
     """Check if a single environment variable is set correctly."""
     var_value = os.environ.get(var_name)
-    
+
     if var_value is None:
         logging.error(f"🚨 Environment variable '{var_name}' is NOT SET.")
         return False
@@ -47,14 +61,9 @@ def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64")
     try:
         decoded_bytes = base64.b64decode(encoded_keys, validate=True)
         decoded_str = decoded_bytes.decode("utf-8")
-    except Exception as e:
-        logging.error(f"🚨 Base64 decoding failed for {env_var_name}: {e}")
-        return False
-
-    try:
         parsed_keys = json.loads(decoded_str)
-    except json.JSONDecodeError as e:
-        logging.error(f"🚨 JSON parsing failed for decoded {env_var_name}: {e}")
+    except Exception as e:
+        logging.error(f"🚨 Failed to decode or parse {env_var_name}: {e}")
         return False
 
     if not isinstance(parsed_keys, list) or not parsed_keys:
@@ -71,29 +80,17 @@ def validate_openai_keys_structure(env_var_name: str = "OPENAI_API_KEYS_BASE64")
 
     if valid_keys:
         logging.info(f"🔐 Successfully validated structure: {len(parsed_keys)} keys found.")
-        return True
-    else:
-        return False
+    return valid_keys
 
 
 def check_required_envs() -> bool:
     """Check all required environment variables are set."""
-    required_envs = [
-        "OPENAI_API_KEYS_BASE64",
-        "GOOGLE_CLIENT_ID",
-        "GOOGLE_CLIENT_SECRET",
-        "GOOGLE_REFRESH_TOKEN",
-        "SLACK_API_TOKEN",
-        "SLACK_CHANNEL",
-        "ELEVENLABS_API_KEY",
-        "SLACK_WEBHOOK_URL"
-    ]
-
-    missing = [key for key in required_envs if not os.getenv(key)]
+    missing = [key for key in REQUIRED_ENV_VARS if not os.getenv(key)]
 
     if missing:
         logging.error(f"🚨 Missing required environment variables: {', '.join(missing)}")
         return False
+
     logging.info("✅ All required environment variables are set.")
     return True
 
@@ -102,14 +99,12 @@ def main():
     logging.info("🚀 Starting environment variable validation...")
 
     # Step 1: Check required environment variables
-    logging.info("🔍 Checking required environment variables...")
     if not check_required_envs():
         sys.exit(1)
 
     # Step 2: Validate structure of the OPENAI_API_KEYS_BASE64
-    if os.environ.get("OPENAI_API_KEYS_BASE64"):
-        if not validate_openai_keys_structure():
-            sys.exit(1)
+    if not validate_openai_keys_structure():
+        sys.exit(1)
 
     logging.info("✅ All required environment variables and structures are valid.")
     sys.exit(0)
