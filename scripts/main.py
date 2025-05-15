@@ -1,8 +1,4 @@
-import sys
-import os
-
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
+from scripts.auth import save_gcp_credentials_from_env
 from scripts.content_generator import ContentGenerator
 from scripts.voice_generator import generate_voice
 from scripts.create_video import create_video_with_subtitles
@@ -13,6 +9,8 @@ from scripts.notifier import send_notification
 
 def main():
     try:
+        save_gcp_credentials_from_env()  # ✅ GCP 인증 설정
+
         content_gen = ContentGenerator()
         content = content_gen.generate()
 
