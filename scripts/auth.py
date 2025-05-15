@@ -1,14 +1,16 @@
 import os
+import json
 import base64
 
 def save_gcp_credentials_from_env():
-    creds_b64 = os.getenv("GCP_SERVICE_ACCOUNT_BASE64")
-    if not creds_b64:
-        raise ValueError("GCP_SERVICE_ACCOUNT_BASE64 환경변수가 설정되지 않았습니다.")
+    """
+    환경 변수로부터 GCP 서비스 계정 인증 정보를 파일로 저장합니다.
+    """
+    gcp_credentials_base64 = os.environ.get("GOOGLE_TOKEN_JSON")
+    if not gcp_credentials_base64:
+        raise ValueError("GOOGLE_TOKEN_JSON 환경변수가 설정되지 않았습니다.")
 
-    decoded = base64.b64decode(creds_b64)
-    creds_path = "/tmp/service_account.json"
-    with open(creds_path, "wb") as f:
-        f.write(decoded)
-
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = creds_path
+    credentials_path = "gcp_credentials.json"
+    with open(credentials_path, "w") as f:
+        f.write(gcp_credentials_base64)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credentials_path
