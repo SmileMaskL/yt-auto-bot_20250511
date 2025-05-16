@@ -10,7 +10,7 @@ from scripts.notifier import send_notification
 
 def main():
     try:
-        # GCP 인증 설정
+        # GCP 서비스 계정 인증 설정
         save_gcp_credentials_from_env()
 
         # 콘텐츠 생성
@@ -28,16 +28,16 @@ def main():
         video_path = "output_video.mp4"
         create_video_with_subtitles(audio_path, content, video_path)
 
-        # YouTube 업로드
+        # YouTube 업로드 (OAuth 인증 사용)
         upload_video_to_youtube(video_path, content, thumbnail_path)
 
-        # 채널 성과 분석
+        # YouTube 성과 분석
         analyze_channel_performance()
 
         # 성공 알림
         send_notification("✅ 작업이 성공적으로 완료되었습니다.")
+
     except Exception as e:
-        # 실패 알림
         send_notification(f"❌ 작업 중 오류 발생: {str(e)}")
         raise
 
