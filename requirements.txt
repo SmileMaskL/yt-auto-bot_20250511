@@ -1,7 +1,9 @@
-google-api-python-client
+openai
 google-auth
 google-auth-oauthlib
-google-auth-httplib2
-openai
+google-api-python-client
+google-cloud-texttospeech   # ✅ 이 줄을 추가해줘야 오류가 사라져!
 elevenlabs
+requests
+python-dotenv
 slack_sdk
