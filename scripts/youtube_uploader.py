@@ -1,35 +1,30 @@
-import os
-import json
 from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
+from googleapiclient.http import MediaFileUpload
+import os
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+def upload_video(video_file, thumbnail_file, title, description=""):
+    # 인증 및 서비스 객체 생성
+    youtube = build('youtube', 'v3', developerKey=os.getenv("YOUTUBE_API_KEY"))
 
-def upload_video(video_file: str, title: str, thumbnail_file: str):
-    creds = Credentials.from_authorized_user_info(json.loads(os.getenv("GOOGLE_TOKEN_JSON")), SCOPES)
-    youtube = build("youtube", "v3", credentials=creds)
-    body = {
-        "snippet": {
-            "title": title[:100],
-            "description": "#shorts 자동 생성 콘텐츠",
-            "tags": ["AI", "자동화", "수익화"],
-            "categoryId": "22"
-        },
-        "status": {
-            "privacyStatus": "public"
-        }
-    }
+    # 영상 업로드
     request = youtube.videos().insert(
-        part=','.join(body.keys()),
-        body=body,
-        media_body=video_file
+        part="snippet,status",
+        body={
+            "snippet": {
+                "title": title,
+                "description": description,
+                "tags": ["Shorts", "AI", "Automation"]
+            },
+            "status": {
+                "privacyStatus": "public"
+            }
+        },
+        media_body=MediaFileUpload(video_file)
     )
     response = request.execute()
-    video_id = response["id"]
+
+    # 썸네일 업로드
     youtube.thumbnails().set(
-        videoId=video_id,
-        media_body=thumbnail_file
+        videoId=response["id"],
+        media_body=MediaFileUpload(thumbnail_file)
     ).execute()
-    return f"https://www.youtube.com/watch?v={video_id}"
