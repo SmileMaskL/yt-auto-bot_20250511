@@ -1,18 +1,16 @@
+import openai
 import random
 
 class ContentGenerator:
-    """
-    예시: 실제로는 AI API, GPT, 또는
-    데이터베이스 기반 콘텐츠 생성으로 대체하세요.
-    """
     def __init__(self):
-        self.samples = [
-            "오늘의 건강 팁: 물을 많이 마시세요.",
-            "효과적인 공부 방법 5가지 소개합니다.",
-            "여름철 피부 관리 비법 알려드려요.",
-            "집에서 할 수 있는 간단 요가 동작.",
-            "최신 IT 기술 트렌드 정리."
-        ]
+        openai.api_key = os.getenv("OPENAI_API_KEY")
+        self.keywords = ["AI", "Python", "GCP", "YouTube Shorts", "자동화"]
 
-    def generate(self) -> str:
-        return random.choice(self.samples)
+    def generate(self):
+        keyword = random.choice(self.keywords)
+        prompt = f"{keyword}에 대한 60초 분량의 유익한 스크립트를 작성해줘."
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        return response.choices[0].message.content.strip()
