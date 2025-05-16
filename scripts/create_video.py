@@ -1,13 +1,7 @@
-from moviepy.editor import *
-import os
+# scripts/create_video.py
 
-def create_video(audio_path, text, subtitles_path):
-    clip = ColorClip(size=(720, 1280), color=(255, 255, 255), duration=10)
-    audio = AudioFileClip(audio_path)
-    clip = clip.set_audio(audio)
-
-    txt = TextClip(text, fontsize=48, color='black', size=(700, None), method='caption')
-    txt = txt.set_position('center').set_duration(10)
-    video = CompositeVideoClip([clip, txt])
-    video.write_videofile("output/video.mp4", fps=24)
-    return "output/video.mp4"
+def create_video_file(audio_path, text):
+    video_path = "output/video.mp4"
+    # 영상 제작 코드 삽입 (이미지+음성 결합 등)
+    print(f"영상 제작 중... (음성: {audio_path})")
+    return video_path
