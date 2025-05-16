@@ -1,13 +1,9 @@
 from PIL import Image, ImageDraw, ImageFont
+import os
 
-def generate_thumbnail(text, output_path="thumbnail.jpg"):
-    # 배경 이미지 생성
+def generate_thumbnail(text, output_path):
     img = Image.new('RGB', (1280, 720), color=(73, 109, 137))
-
-    # 텍스트 추가
-    draw = ImageDraw.Draw(img)
+    d = ImageDraw.Draw(img)
     font = ImageFont.truetype("arial.ttf", 60)
-    draw.text((100, 300), text, font=font, fill=(255, 255, 255))
-
+    d.text((100, 300), text, fill=(255, 255, 0), font=font)
     img.save(output_path)
-    return output_path
