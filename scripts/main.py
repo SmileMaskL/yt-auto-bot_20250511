@@ -1,41 +1,35 @@
-# ✅ scripts/main.py
-# 완전 자동 실행되는 유튜브 수익화 파이프라인의 시작점입니다.
-# 이 스크립트는 모든 주요 컴포넌트를 순서대로 호출하여 전체 프로세스를 완성합니다.
-
-from content_generator import generate_hot_topic_script
-from voice_generator import synthesize_voice
-from video_generator import create_video_with_audio
-from youtube_uploader import upload_video
-from thumbnail_generator import generate_thumbnail
-from api_manager import clean_old_files, rotate_openai_key
 import os
-import datetime
-
+from scripts import (
+    content_generator,
+    voice_generator,
+    video_generator,
+    thumbnail_generator,
+    youtube_uploader,
+    api_manager,
+    maintenance
+)
 
 def main():
-    print("📌 [1단계] OpenAI 키 자동 로테이션 중...")
-    rotate_openai_key()
+    # API 키 로테이션
+    api_manager.rotate_openai_key()
 
-    print("🔥 [2단계] 오늘의 핫이슈 콘텐츠 생성 중...")
-    script_text, title, tags = generate_hot_topic_script()
+    # 핫이슈 콘텐츠 생성
+    script_text = content_generator.generate_content()
 
-    print("🗣️ [3단계] 음성 합성 중...")
-    audio_path = synthesize_voice(script_text)
+    # 음성 생성
+    audio_path = voice_generator.text_to_speech(script_text)
 
-    print("🎬 [4단계] 영상 생성 중...")
-    video_path = create_video_with_audio(audio_path, script_text)
+    # 썸네일 생성
+    thumbnail_path = thumbnail_generator.generate_thumbnail(script_text)
 
-    print("🖼️ [5단계] 썸네일 생성 중...")
-    thumbnail_path = generate_thumbnail(title)
+    # 영상 생성
+    video_path = video_generator.create_video(audio_path, script_text)
 
-    print("📤 [6단계] 유튜브 업로드 중...")
-    upload_video(video_path, title, script_text, tags, thumbnail_path)
+    # YouTube 업로드
+    youtube_uploader.upload_video(video_path, thumbnail_path, script_text)
 
-    print("🧹 [7단계] 오래된 파일 정리 중...")
-    clean_old_files(days=7)
+    # 유지보수 작업
+    maintenance.cleanup_old_files()
 
-    print("✅ 모든 작업이 완료되었습니다!")
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
