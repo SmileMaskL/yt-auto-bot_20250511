@@ -1,28 +1,35 @@
-name: Auto YouTube Shorts Upload
+# .github/workflows/upload.yml
+
+name: YouTube Video Auto Upload
 
 on:
-  schedule:
-    - cron: '0 0,6,12 * * *'  # UTC 기준 0시, 6시, 12시 (한국 시간 +9h)
   workflow_dispatch:
+  schedule:
+    - cron: '0 9 * * *'  # 매일 오전 9시 자동 실행 (UTC 기준, 한국은 18시)
 
 jobs:
-  build:
+  upload-video:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 저장소 체크아웃
+      - name: 📁 코드 다운로드 (repo checkout)
         uses: actions/checkout@v3
 
-      - name: Python 설정
+      - name: 🐍 파이썬 설정
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
-      - name: 종속성 설치
+      - name: 📦 필요한 패키지 설치
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 스크립트 실행
+      - name: 🔐 GCP 인증파일 생성
+        run: |
+          mkdir -p config
+          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" | base64 -d > config/credentials.json
+
+      - name: ▶️ 자동 영상 생성 및 업로드 실행
         run: |
           python scripts/main.py
