@@ -1,18 +1,13 @@
+import os
 import openai
-import requests
+from scripts.api_manager import rotate_openai_key
 
-def fetch_trending_topics():
-    # 예시: Google Trends API 또는 뉴스 API 사용
-    response = requests.get("https://api.example.com/trending")
-    topics = response.json().get("topics", [])
-    return topics
-
-def generate_content():
-    topics = fetch_trending_topics()
-    prompt = f"다음 주제에 대한 유익한 스크립트를 작성해주세요: {', '.join(topics)}"
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
-        max_tokens=500
+def generate_script(topic):
+    rotate_openai_key()
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    prompt = f"{topic}에 대한 유튜브 스크립트를 작성해줘."
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": prompt}]
     )
-    return response.choices[0].text.strip()
+    return response.choices[0].message.content.strip()
