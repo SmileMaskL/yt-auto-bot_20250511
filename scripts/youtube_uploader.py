@@ -1,63 +1,47 @@
-# scripts/youtube_uploader.py
-
-import os
-import time
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from googleapiclient.errors import HttpError
+import os
+import time
 
-def upload_video(video_file, script_text, thumbnail_file=None):
-    # ✅ 서비스 계정 인증
-    credentials = service_account.Credentials.from_service_account_file(
-        "config/credentials.json",
-        scopes=["https://www.googleapis.com/auth/youtube.upload"]
-    )
-    youtube = build("youtube", "v3", credentials=credentials)
+def upload_video(video_path, title, thumbnail_path=None):
+    SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl"]
+    creds = service_account.Credentials.from_service_account_file("config/credentials.json", scopes=SCOPES)
+    youtube = build("youtube", "v3", credentials=creds)
 
-    # ✅ 제목, 설명, 태그 자동 생성
-    title = f"🔥 {script_text[:30]}..."
-    description = f"{script_text}\n\n#AI #자동화 #YouTubeBot"
-    tags = ["AI", "자동화", "YouTube", "GPT", "수익화"]
-
-    # ✅ 업로드 요청 바디
     request_body = {
         "snippet": {
             "title": title,
-            "description": description,
-            "tags": tags,
-            "categoryId": "22"  # People & Blogs
+            "description": "자동 생성된 영상입니다.",
+            "tags": ["AI", "Shorts", "자동화", "트렌드"],
+            "categoryId": "22"
         },
         "status": {
-            "privacyStatus": "public"  # 'private', 'unlisted'도 가능
+            "privacyStatus": "public",
+            "selfDeclaredMadeForKids": False
         }
     }
 
-    # ✅ 영상 업로드
-    media_file = MediaFileUpload(video_file)
-    try:
-        print("🚀 영상 업로드 시작...")
-        response = youtube.videos().insert(
-            part="snippet,status",
-            body=request_body,
-            media_body=media_file
-        ).execute()
-        video_id = response.get("id")
-        print(f"✅ 영상 업로드 완료! videoId: {video_id}")
-    except HttpError as e:
-        print(f"❌ 업로드 중 오류 발생: {e}")
-        return
+    media_file = MediaFileUpload(video_path, mimetype="video/*", resumable=True)
+    response_upload = youtube.videos().insert(part="snippet,status", body=request_body, media_body=media_file).execute()
+    video_id = response_upload["id"]
 
-    # ✅ 썸네일 업로드 (선택)
-    if thumbnail_file:
-        try:
-            print("🖼️ 썸네일 업로드 시도 중...")
-            youtube.thumbnails().set(
-                videoId=video_id,
-                media_body=MediaFileUpload(thumbnail_file)
-            ).execute()
-            print("✅ 썸네일 업로드 완료!")
-        except HttpError as e:
-            print(f"⚠️ 썸네일 업로드 실패 (무시됨): {e}")
+    # 썸네일 업로드
+    if thumbnail_path:
+        youtube.thumbnails().set(videoId=video_id, media_body=thumbnail_path).execute()
 
-    print("🎉 유튜브 영상 자동 업로드 전체 완료!")
+    print(f"✅ 업로드 완료: https://youtu.be/{video_id}")
+
+    # 댓글 자동 작성
+    youtube.commentThreads().insert(
+        part="snippet",
+        body={
+            "snippet": {
+                "videoId": video_id,
+                "topLevelComment": {
+                    "snippet": {
+                        "textOriginal": "이 영상이 마음에 드셨다면 좋아요와 구독 부탁드려요! 😊"
+                    }
+                }
+            }
+        }
+    ).execute()
