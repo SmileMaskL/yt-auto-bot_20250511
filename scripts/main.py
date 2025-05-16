@@ -1,31 +1,43 @@
-from scripts.analytics_bot import get_top_video_titles
-from scripts.content_generator import generate_script
-from scripts.voice_generator import generate_voice
-from scripts.create_video import create_video
-from scripts.thumbnail_generator import generate_thumbnail
-from scripts.translate_subtitles import translate_subtitles
-from scripts.youtube_uploader import upload_video
+# scripts/main.py
 
+# sys.path 설정: scripts 폴더가 모듈 경로에 포함되도록
+import sys
+import os
+sys.path.append(os.path.dirname(__file__))
+
+from analytics_bot import get_top_video_titles
+from content_generator import generate_content
+from voice_generator import generate_voice
+from create_video import create_video_file
+from thumbnail_generator import generate_thumbnail
+from youtube_uploader import upload_video
 
 def main():
+    print("===== YouTube 자동화 시작 =====")
+
+    # 1. 인기 영상 제목 가져오기
     titles = get_top_video_titles()
-    for title in titles:
-        print(f"▶ {title} 콘텐츠 생성 중...")
-        script = generate_script(f"{title}에 대한 짧고 흥미로운 스크립트 작성해줘")
+    print(f"인기 영상 제목들: {titles}")
 
-        audio_path = "output/audio.mp3"
-        generate_voice(script, audio_path)
+    # 2. 콘텐츠 스크립트 생성
+    content_script = generate_content(titles[0])
+    print(f"생성된 콘텐츠: {content_script}")
 
-        translated = translate_subtitles(script, target_lang='en')
-        subtitles_path = "output/subtitles.srt"
-        with open(subtitles_path, 'w', encoding='utf-8') as f:
-            f.write("1\n00:00:00,000 --> 00:00:10,000\n" + translated)
+    # 3. 음성 생성
+    audio_path = generate_voice(content_script)
+    print(f"생성된 음성 파일 경로: {audio_path}")
 
-        video_path = create_video(audio_path, script, subtitles_path)
-        thumbnail_path = generate_thumbnail(title)
+    # 4. 영상 제작
+    video_path = create_video_file(audio_path, content_script)
+    print(f"생성된 영상 파일 경로: {video_path}")
 
-        upload_video(video_path, title, script, thumbnail_path)
+    # 5. 썸네일 생성
+    thumbnail_path = generate_thumbnail(titles[0])
+    print(f"생성된 썸네일 파일 경로: {thumbnail_path}")
 
+    # 6. 유튜브에 업로드
+    upload_video(video_path, thumbnail_path, titles[0], content_script)
+    print("===== 유튜브 자동 업로드 완료! =====")
 
 if __name__ == "__main__":
     main()
