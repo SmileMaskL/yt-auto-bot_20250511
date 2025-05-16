@@ -1,29 +1,31 @@
+import os
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import os
+from oauth2client.service_account import ServiceAccountCredentials
 
-def upload_video(video_file, thumbnail_file, title, description=""):
-    # 인증 및 서비스 객체 생성
-    youtube = build('youtube', 'v3', developerKey=os.getenv("YOUTUBE_API_KEY"))
+def upload_video(video_file, title, description, thumbnail_file):
+    scopes = ["https://www.googleapis.com/auth/youtube.upload"]
+    credentials = ServiceAccountCredentials.from_json_keyfile_name("config/credentials.json", scopes)
+    youtube = build("youtube", "v3", credentials=credentials)
 
-    # 영상 업로드
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {
-                "title": title,
-                "description": description,
-                "tags": ["Shorts", "AI", "Automation"]
-            },
-            "status": {
-                "privacyStatus": "public"
-            }
+    request_body = {
+        "snippet": {
+            "title": title,
+            "description": description,
+            "tags": ["AI", "자동화", "유튜브"]
         },
-        media_body=MediaFileUpload(video_file)
-    )
-    response = request.execute()
+        "status": {
+            "privacyStatus": "public"
+        }
+    }
 
-    # 썸네일 업로드
+    media_file = MediaFileUpload(video_file)
+    response = youtube.videos().insert(
+        part="snippet,status",
+        body=request_body,
+        media_body=media_file
+    ).execute()
+
     youtube.thumbnails().set(
         videoId=response["id"],
         media_body=MediaFileUpload(thumbnail_file)
