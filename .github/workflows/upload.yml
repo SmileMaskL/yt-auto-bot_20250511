@@ -1,9 +1,9 @@
 name: YouTube Auto Upload Pipeline
 
-# 매일 9시, 15시, 21시에 자동 실행 (한국 시간 기준 UTC+9 → 0시, 6시, 12시에 실행)
+# 매일 한국 시간 9시, 15시, 21시에 자동 실행
 on:
   schedule:
-    - cron: '0 0,6,12 * * *'  # UTC 시간 기준, 한국시간 9시, 15시, 21시
+    - cron: '0 0,6,12 * * *'  # UTC 기준 0시, 6시, 12시 (한국 시간 +9h)
   workflow_dispatch:          # 수동 실행 가능
 
 jobs:
@@ -11,26 +11,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: 저장소 코드 가져오기 (Checkout)
+        uses: actions/checkout@v3
 
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: 3.11
+      - name: Python 3.11 설치
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install --no-cache-dir -r scripts/requirements.txt
+      - name: 필요 라이브러리 설치 (requirements.txt 기준)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r scripts/requirements.txt
 
-    - name: Run main pipeline
-      env:
-        OPENAI_KEYS: ${{ secrets.OPENAI_KEYS }}
-        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-        GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
-        ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-        ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
-      run: |
-        python scripts/main.py
+      - name: 메인 자동화 스크립트 실행
+        env:
+          # GitHub Secrets에 저장된 API 키 및 인증 정보
+          OPENAI_KEYS: ${{ secrets.OPENAI_KEYS }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+        run: |
+          python scripts/main.py
