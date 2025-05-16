@@ -1,10 +1,8 @@
-# ✅ .github/workflows/upload.yml (GitHub 자동 실행 설정)
-
-name: YouTube Auto Upload
+name: YouTube Upload Automation
 
 on:
   schedule:
-    - cron: "0 2,8,14,20 * * *"  # 하루 4번 자동 실행 (한국 시간 기준 오전 11시, 오후 5시, 11시, 새벽 5시)
+    - cron: '0 10 * * *'  # 매일 오전 10시에 자동 실행
   workflow_dispatch:
 
 jobs:
@@ -12,26 +10,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📂 GitHub 저장소 코드 내려받기
+      - name: 📂 코드 내려받기
         uses: actions/checkout@v3
 
-      - name: 🔧 Python 설치
+      - name: 🔧 Python 3.10 설치
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
-      - name: 📃 필요한 파이썬 패키지 설치
+      - name: 📃 패키지 설치
         run: pip install -r requirements.txt
 
-      - name: 🔍 현재 디렉토리 구조 보기 (디버깅용)
-        run: |
-          pwd
-          ls -al
-          echo "-------- scripts 디렉토리 내부 --------"
-          ls -al scripts
+      - name: 🧰 output 폴더 생성
+        run: mkdir -p output
 
-      - name: 📚 main.py 실행하기 (scripts 디렉토리에 있음)
-        run: python scripts/main.py
+      - name: 📚 main.py 실행 (scripts 폴더 안에서 실행)
+        working-directory: scripts
+        run: python main.py
 
       - name: ✅ 완료 메시지 출력
-        run: echo "YouTube 자동화 실행 완료 ✅"
+        run: echo "YouTube 자동화 프로세스 정상 완료 ✅"
+      
+    env:
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
