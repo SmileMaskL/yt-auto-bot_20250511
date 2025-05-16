@@ -1,13 +1,15 @@
-from content_generator import generate_content
-from voice_generator import generate_voice
-from create_video import create_video
-from youtube_uploader import upload_video
+from scripts.content_generator import generate_script
+from scripts.voice_generator import generate_voice
+from scripts.create_video import create_video
+from scripts.youtube_uploader import upload_video
+from scripts.thumbnail_generator import generate_thumbnail
 
 def main():
-    script = generate_content()
-    audio_path = generate_voice(script)
-    video_path = create_video(audio_path, script)
-    upload_video(video_path, script)
+    script_text = generate_script()
+    audio_file = generate_voice(script_text)
+    video_file = create_video(audio_file, script_text)
+    thumbnail_file = generate_thumbnail(script_text)
+    upload_video(video_file, script_text, thumbnail_file)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
