@@ -1,14 +1,4 @@
-# ✅ scripts/content_generator.py
-
-import openai
-import os
-
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
-def generate_script(prompt):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        max_tokens=300
-    )
-    return response.choices[0].message.content
+# scripts/content_generator.py
+def generate_content(title):
+    # 간단히 제목을 활용한 스크립트 생성
+    return f"{title}에 관한 자세한 설명과 자동화 비법을 알려드립니다."
