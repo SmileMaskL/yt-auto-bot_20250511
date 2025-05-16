@@ -1,8 +1,26 @@
 import os
-from moviepy.editor import ImageClip, AudioFileClip
+import requests
 
-def create_video(image_path, audio_path, output_path):
-    audio_clip = AudioFileClip(audio_path)
-    image_clip = ImageClip(image_path).set_duration(audio_clip.duration)
-    video = image_clip.set_audio(audio_clip)
-    video.write_videofile(output_path, fps=24)
+def generate_voice(text, output_path="output/audio.mp3"):
+    api_key = os.getenv("ELEVENLABS_API_KEY")
+    voice_id = os.getenv("ELEVENLABS_VOICE_ID")
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+    headers = {
+        "xi-api-key": api_key,
+        "Content-Type": "application/json"
+    }
+    data = {
+        "text": text,
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.75
+        }
+    }
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code == 200:
+        with open(output_path, "wb") as f:
+            f.write(response.content)
+        return output_path
+    else:
+        raise Exception(f"음성 생성 실패: {response.status_code} {response.text}")
