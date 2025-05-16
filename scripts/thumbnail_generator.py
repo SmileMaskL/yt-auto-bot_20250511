@@ -1,10 +1,7 @@
-from PIL import Image, ImageDraw, ImageFont
+# scripts/thumbnail_generator.py
 
-def generate_thumbnail(text):
-    img = Image.new('RGB', (1280, 720), color=(255, 255, 0))
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.load_default()
-    draw.text((10, 10), text, fill=(0, 0, 0), font=font)
-    path = "output/thumbnail.jpg"
-    img.save(path)
-    return path
+def generate_thumbnail(title):
+    thumbnail_path = "output/thumbnail.jpg"
+    # 썸네일 이미지 생성 코드 삽입
+    print(f"썸네일 생성 중... (제목: {title})")
+    return thumbnail_path
