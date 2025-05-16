@@ -1,12 +1,13 @@
-import os
+import schedule
 import time
+from scripts.file_cleaner import clean_old_files
 
-def cleanup_old_files(directory=".", days=7):
-    now = time.time()
-    cutoff = now - (days * 86400)
+def maintenance_tasks():
+    clean_old_files("data/videos")
+    clean_old_files("data/audio")
 
-    for filename in os.listdir(directory):
-        filepath = os.path.join(directory, filename)
-        if os.path.isfile(filepath):
-            if os.path.getmtime(filepath) < cutoff:
-                os.remove(filepath)
+def run_maintenance():
+    schedule.every().day.at("03:00").do(maintenance_tasks)
+    while True:
+        schedule.run_pending()
+        time.sleep(1)
