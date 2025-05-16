@@ -1,46 +1,30 @@
-from google.oauth2 import service_account
+import os
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from google.oauth2 import service_account
 
-def upload_video(video_path, title, description, thumbnail_path=None):
-    SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl"]
-    creds = service_account.Credentials.from_service_account_file("config/credentials.json", scopes=SCOPES)
-    youtube = build("youtube", "v3", credentials=creds)
+SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
+SERVICE_ACCOUNT_FILE = "config/credentials.json"
 
-    request_body = {
-        "snippet": {
-            "title": title,
-            "description": description,
-            "tags": ["AI", "Shorts", "자동화", "트렌드"],
-            "categoryId": "22"
-        },
-        "status": {
-            "privacyStatus": "public",
-            "selfDeclaredMadeForKids": False
-        }
-    }
+credentials = service_account.Credentials.from_service_account_file(
+    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+youtube = build("youtube", "v3", credentials=credentials)
 
-    media_file = MediaFileUpload(video_path, mimetype="video/*", resumable=True)
-    response_upload = youtube.videos().insert(part="snippet,status", body=request_body, media_body=media_file).execute()
-    video_id = response_upload["id"]
-
-    # 썸네일 업로드
-    if thumbnail_path:
-        youtube.thumbnails().set(videoId=video_id, media_body=thumbnail_path).execute()
-
-    print(f"✅ 업로드 완료: https://youtu.be/{video_id}")
-
-    # 댓글 자동 작성
-    youtube.commentThreads().insert(
-        part="snippet",
+def upload_video(video_path, title, description, thumbnail_path):
+    request = youtube.videos().insert(
+        part="snippet,status",
         body={
             "snippet": {
-                "videoId": video_id,
-                "topLevelComment": {
-                    "snippet": {
-                        "textOriginal": "이 영상이 마음에 드셨다면 좋아요와 구독 부탁드려요! 😊"
-                    }
-                }
-            }
-        }
+                "title": title,
+                "description": description,
+                "tags": ["Shorts", "AI", "Automation"]
+            },
+            "status": {"privacyStatus": "public"}
+        },
+        media_body=video_path
+    )
+    response = request.execute()
+
+    youtube.thumbnails().set(
+        videoId=response['id'],
+        media_body=thumbnail_path
     ).execute()
