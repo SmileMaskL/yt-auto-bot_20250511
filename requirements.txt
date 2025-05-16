@@ -3,7 +3,7 @@ google-auth
 google-auth-oauthlib
 google-api-python-client
 google-cloud-texttospeech
-elevenlabs
+elevenlabs==1.0.0
 requests
 python-dotenv
 slack_sdk
