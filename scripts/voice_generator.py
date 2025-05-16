@@ -1,6 +1,8 @@
+import os
 from gtts import gTTS
 
-def text_to_speech(text, filename="output.mp3"):
+def generate_voice(text, filename):
     tts = gTTS(text=text, lang='ko')
-    tts.save(filename)
-    return filename
+    filepath = os.path.join("data", "audio", f"{filename}.mp3")
+    tts.save(filepath)
+    return filepath
