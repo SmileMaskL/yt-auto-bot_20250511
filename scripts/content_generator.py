@@ -1,12 +1,14 @@
+# ✅ scripts/content_generator.py
+
 import openai
 import os
 
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-def generate_script():
-    prompt = "오늘의 흥미로운 유튜브 쇼츠 주제를 알려줘."
+def generate_script(prompt):
     response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[{"role": "user", "content": prompt}]
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        max_tokens=300
     )
-    return response.choices[0].message.content.strip()
+    return response.choices[0].message.content
