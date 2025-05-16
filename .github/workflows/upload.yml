@@ -2,7 +2,7 @@ name: Auto YouTube Shorts Upload
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 매일 오전 9시(KST)에 실행
+    - cron: '0 0,6,12 * * *'  # UTC 기준 0시, 6시, 12시 (한국 시간 +9h)
   workflow_dispatch:
 
 jobs:
