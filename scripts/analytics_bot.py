@@ -1,15 +1,4 @@
-from googleapiclient.discovery import build
-import os
-
-api_key = os.getenv("YOUTUBE_API_KEY")
-youtube = build('youtube', 'v3', developerKey=api_key)
-
+# scripts/analytics_bot.py
 def get_top_video_titles():
-    request = youtube.videos().list(
-        part="snippet",
-        chart="mostPopular",
-        regionCode="KR",
-        maxResults=5
-    )
-    response = request.execute()
-    return [item['snippet']['title'] for item in response['items']]
+    # 여기서는 예시로 고정된 제목 리스트 반환
+    return ["인공지능으로 만드는 미래 영상", "자동화 유튜브 수익화 꿀팁"]
