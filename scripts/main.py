@@ -12,10 +12,6 @@ def main():
 
         video_generator.create_video(image_path, audio_path, video_path)
         thumbnail_generator.generate_thumbnail(topic, thumbnail_path)
-        youtube_uploader.upload_video(video_path, topic, script, thumbnail_path)
-        comment_generator.post_comment("video_id", "좋은 영상 감사합니다!")
-        shorts_path = os.path.join("data", "videos", f"{topic}_shorts.mp4")
-        shorts_converter.convert_to_shorts(video_path, shorts_path)
-
-if __name__ == "__main__":
-    main()
+        youtube
+::contentReference[oaicite:18]{index=18}
+ 
