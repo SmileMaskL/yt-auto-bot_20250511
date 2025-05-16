@@ -1,35 +1,21 @@
+from scripts import trend_collector, content_generator, voice_generator, video_generator, thumbnail_generator, youtube_uploader, comment_generator, shorts_converter, maintenance
 import os
-from scripts import (
-    content_generator,
-    voice_generator,
-    video_generator,
-    thumbnail_generator,
-    youtube_uploader,
-    api_manager,
-    maintenance
-)
 
 def main():
-    # API 키 로테이션
-    api_manager.rotate_openai_key()
+    topics = trend_collector.get_trending_topics()
+    for topic in topics:
+        script = content_generator.generate_script(topic)
+        audio_path = voice_generator.generate_voice(script, topic)
+        image_path = "path_to_default_image.jpg"  # 기본 이미지 경로 설정
+        video_path = os.path.join("data", "videos", f"{topic}.mp4")
+        thumbnail_path = os.path.join("data", "thumbnails", f"{topic}.jpg")
 
-    # 핫이슈 콘텐츠 생성
-    script_text = content_generator.generate_content()
-
-    # 음성 생성
-    audio_path = voice_generator.text_to_speech(script_text)
-
-    # 썸네일 생성
-    thumbnail_path = thumbnail_generator.generate_thumbnail(script_text)
-
-    # 영상 생성
-    video_path = video_generator.create_video(audio_path, script_text)
-
-    # YouTube 업로드
-    youtube_uploader.upload_video(video_path, thumbnail_path, script_text)
-
-    # 유지보수 작업
-    maintenance.cleanup_old_files()
+        video_generator.create_video(image_path, audio_path, video_path)
+        thumbnail_generator.generate_thumbnail(topic, thumbnail_path)
+        youtube_uploader.upload_video(video_path, topic, script, thumbnail_path)
+        comment_generator.post_comment("video_id", "좋은 영상 감사합니다!")
+        shorts_path = os.path.join("data", "videos", f"{topic}_shorts.mp4")
+        shorts_converter.convert_to_shorts(video_path, shorts_path)
 
 if __name__ == "__main__":
     main()
