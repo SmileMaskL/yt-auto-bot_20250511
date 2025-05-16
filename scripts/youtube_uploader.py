@@ -1,30 +1,9 @@
-import os
-from googleapiclient.discovery import build
-from google.oauth2 import service_account
+# scripts/youtube_uploader.py
 
-SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-SERVICE_ACCOUNT_FILE = "config/credentials.json"
-
-credentials = service_account.Credentials.from_service_account_file(
-    SERVICE_ACCOUNT_FILE, scopes=SCOPES)
-youtube = build("youtube", "v3", credentials=credentials)
-
-def upload_video(video_path, title, description, thumbnail_path):
-    request = youtube.videos().insert(
-        part="snippet,status",
-        body={
-            "snippet": {
-                "title": title,
-                "description": description,
-                "tags": ["Shorts", "AI", "Automation"]
-            },
-            "status": {"privacyStatus": "public"}
-        },
-        media_body=video_path
-    )
-    response = request.execute()
-
-    youtube.thumbnails().set(
-        videoId=response['id'],
-        media_body=thumbnail_path
-    ).execute()
+def upload_video(video_path, thumbnail_path, title, description):
+    # GCP 서비스 계정 인증 필요 (환경변수 GOOGLE_APPLICATION_CREDENTIALS)
+    # YouTube API 업로드 코드 삽입
+    print(f"유튜브 업로드 중... (영상: {video_path}, 썸네일: {thumbnail_path})")
+    print(f"제목: {title}")
+    print(f"설명: {description}")
+    # 실제 업로드 성공 시 리턴값 처리 가능
