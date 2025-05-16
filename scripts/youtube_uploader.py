@@ -1,9 +1,8 @@
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-import os
-import time
+from googleapiclient.http import MediaFileUpload
 
-def upload_video(video_path, title, thumbnail_path=None):
+def upload_video(video_path, title, description, thumbnail_path=None):
     SCOPES = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube.force-ssl"]
     creds = service_account.Credentials.from_service_account_file("config/credentials.json", scopes=SCOPES)
     youtube = build("youtube", "v3", credentials=creds)
@@ -11,7 +10,7 @@ def upload_video(video_path, title, thumbnail_path=None):
     request_body = {
         "snippet": {
             "title": title,
-            "description": "자동 생성된 영상입니다.",
+            "description": description,
             "tags": ["AI", "Shorts", "자동화", "트렌드"],
             "categoryId": "22"
         },
