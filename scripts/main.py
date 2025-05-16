@@ -1,3 +1,5 @@
+# ✅ main.py (자동화된 유튜브 영상 생성 및 업로드)
+
 from scripts.analytics_bot import get_top_video_titles
 from scripts.create_video import create_video
 from scripts.thumbnail_generator import generate_thumbnail
@@ -54,7 +56,6 @@ def main():
         )
         print("[✓] Video uploaded to YouTube.")
 
-        # ✅ 완료 로그
         print(f"[✔] '{title}' 업로드 완료!\n")
 
 if __name__ == "__main__":
