@@ -1,44 +1,46 @@
-name: YouTube Auto Upload
+name: YouTube Auto Content Bot
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 매일 0시 실행
-  workflow_dispatch:
+    - cron: '0 0 * * *'  # 매일 자정 자동 실행
+  workflow_dispatch:       # 수동 실행도 가능
 
 jobs:
-  upload:
+  generate-and-upload:
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+
     steps:
-      - uses: actions/checkout@v3
+    - name: ✅ 저장소 코드 가져오기
+      uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
+    - name: 🐍 Python 설치
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: 📦 의존성 설치
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
 
-      - name: Restore credentials
-        run: |
-          echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > credentials.json
-          echo "${{ secrets.GOOGLE_TOKEN_JSON_BASE64 }}" | base64 --decode > token.json
+    - name: 🔐 GCP 토큰 복원
+      run: |
+        echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > credentials.json
+        echo "${{ secrets.GOOGLE_TOKEN_JSON_BASE64 }}" | base64 --decode > token.json
 
-      - name: Generate video
-        run: python scripts/generate_content.py
-        env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEYS_BASE64 }}
+    - name: 🧠 콘텐츠 자동 생성
+      run: python content_generator.py
 
-      - name: Upload to YouTube
-        run: |
-          python scripts/upload_video.py \
-            --file "output/video.mp4" \
-            --title "자동 생성된 영상 제목" \
-            --description "자동 생성된 영상 설명" \
-            --category "22" \
-            --keywords "자동화,유튜브" \
-            --privacy_status "public"
+    - name: ⬆️ 유튜브 자동 업로드
+      run: |
+        python scripts/upload_video.py \
+          --file "output/video.mp4" \
+          --title "자동 생성된 영상 제목" \
+          --description "자동 생성된 영상 설명" \
+          --category "22" \
+          --keywords "자동화,유튜브" \
+          --privacy_status "public"
