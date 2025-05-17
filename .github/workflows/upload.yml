@@ -1,29 +1,30 @@
-name: Auto YouTube Shorts Upload
+name: Upload YouTube Shorts
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # 매일 자정 실행
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # 매일 자정 자동 실행
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: 저장소 코드 가져오기
+        uses: actions/checkout@v3
 
-      - name: Setup Python 3.9
+      - name: Python 설정
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install dependencies
+      - name: 필요 라이브러리 설치
         run: pip install -r requirements.txt
 
-      - name: Decode GCP JSON key
-        run: echo "${{ secrets.GCP_SERVICE_ACCOUNT_BASE64 }}" | base64 -d > gcp_key.json
+      - name: GCP 키 파일 생성
+        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" > gcp_key.json
 
-      - name: Run content generator
+      - name: 콘텐츠 생성 및 업로드
         env:
           OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
