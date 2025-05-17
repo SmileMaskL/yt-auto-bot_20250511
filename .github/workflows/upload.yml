@@ -2,11 +2,11 @@ name: YouTube Auto Upload
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 매일 0시에 실행
-  workflow_dispatch:  # 수동 실행도 가능
+    - cron: '0 0 * * *'  # 매일 0시에 자동 실행
+  workflow_dispatch:      # 수동 실행도 가능
 
 jobs:
-  upload:
+  auto-generate-and-upload:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,9 +23,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: token.pickle 복원
+      - name: 자격증명 파일 복원
         run: |
-          echo "${{ secrets.GOOGLE_TOKEN_PICKLE }}" | base64 --decode > token.pickle
+          echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > credentials.json
+          echo "${{ secrets.GOOGLE_TOKEN_JSON_BASE64 }}" | base64 --decode > token.json
+
+      - name: 콘텐츠 자동 생성 스크립트 실행
+        run: |
+          python scripts/generate_content.py
+        env:
+          OPENAI_API_KEYS_BASE64: ${{ secrets.OPENAI_API_KEYS_BASE64 }}
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
 
       - name: 유튜브 업로드 스크립트 실행
         run: |
@@ -34,5 +43,8 @@ jobs:
             --title "자동 생성된 영상 제목" \
             --description "자동 생성된 영상 설명" \
             --category "22" \
-            --keywords "자동화,유튜브" \
+            --keywords "자동화,유튜브,AI,수익창출" \
             --privacy_status "public"
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
