@@ -2,49 +2,43 @@ name: YouTube Auto Upload
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # 매일 0시에 자동 실행
-  workflow_dispatch:      # 수동 실행도 가능
+    - cron: '0 0 * * *'  # 매일 0시 실행
+  workflow_dispatch:
 
 jobs:
-  auto-generate-and-upload:
+  upload:
     runs-on: ubuntu-latest
-
     steps:
-      - name: 저장소 체크아웃
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: Python 설정
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: 의존성 설치
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: 자격증명 파일 복원
+      - name: Restore credentials
         run: |
           echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" > credentials.json
           echo "${{ secrets.GOOGLE_TOKEN_JSON_BASE64 }}" | base64 --decode > token.json
 
-      - name: 콘텐츠 자동 생성 스크립트 실행
-        run: |
-          python scripts/generate_content.py
+      - name: Generate video
+        run: python scripts/generate_content.py
         env:
-          OPENAI_API_KEYS_BASE64: ${{ secrets.OPENAI_API_KEYS_BASE64 }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEYS_BASE64 }}
 
-      - name: 유튜브 업로드 스크립트 실행
+      - name: Upload to YouTube
         run: |
           python scripts/upload_video.py \
             --file "output/video.mp4" \
             --title "자동 생성된 영상 제목" \
             --description "자동 생성된 영상 설명" \
             --category "22" \
-            --keywords "자동화,유튜브,AI,수익창출" \
+            --keywords "자동화,유튜브" \
             --privacy_status "public"
-        env:
-          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-          ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
