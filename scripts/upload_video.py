@@ -15,7 +15,7 @@ def main():
     args = parser.parse_args()
 
     # 토큰 로드
-    with open("token.pickle", "rb") as token_file:
+    with open("token.json", "rb") as token_file:
         credentials = pickle.load(token_file)
 
     youtube = build("youtube", "v3", credentials=credentials)
