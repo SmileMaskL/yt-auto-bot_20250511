@@ -2,7 +2,7 @@ import os
 import openai
 from elevenlabs.client import ElevenLabs
 from elevenlabs import VoiceSettings
-from moviepy.editor import *
+from moviepy import AudioFileClip, ColorClip
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials
