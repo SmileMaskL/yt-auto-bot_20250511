@@ -176,3 +176,5 @@ cython_debug/
 
 token.json
 client_secrets.json
+
+scripts/client_secrets.json
