@@ -3,22 +3,22 @@ name: Upload YouTube Shorts
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 0 * * *'  # 매일 자정 자동 실행
+    - cron: '0 0 * * *'  # 매일 자정에 실행
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 저장소 코드 가져오기
+      - name: 코드 가져오기
         uses: actions/checkout@v3
 
-      - name: Python 설정
+      - name: Python 설치
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: Install system dependencies (ffmpeg)
+      - name: 시스템 도구 설치 (ffmpeg)
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
@@ -34,7 +34,7 @@ jobs:
         env:
           GCP_SERVICE_ACCOUNT_BASE64: ${{ secrets.GCP_SERVICE_ACCOUNT_BASE64 }}
 
-      - name: 콘텐츠 생성 및 유튜브 업로드
+      - name: 유튜브 Shorts 자동 생성 및 업로드
         env:
           OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
