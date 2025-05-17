@@ -1,7 +1,23 @@
-# scripts/create_video.py
+import os
+import subprocess
 
-def create_video_file(audio_path, text):
-    video_path = "output/video.mp4"
-    # 영상 제작 코드 삽입 (이미지+음성 결합 등)
-    print(f"영상 제작 중... (음성: {audio_path})")
-    return video_path
+def create_video_with_ffmpeg(audio_path, image_path, output_path):
+    """
+    FFmpeg를 사용해 이미지 + 오디오 → 영상으로 변환
+    """
+    command = [
+        'ffmpeg',
+        '-y',
+        '-loop', '1',
+        '-i', image_path,
+        '-i', audio_path,
+        '-c:v', 'libx264',
+        '-tune', 'stillimage',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        '-pix_fmt', 'yuv420p',
+        '-shortest',
+        output_path
+    ]
+    subprocess.run(command, check=True)
+    return output_path
