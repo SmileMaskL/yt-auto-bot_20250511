@@ -11,7 +11,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials
 
-# 🔐 OpenAI API 키 여러 개 중 무작위 선택
+# 🔐 OpenAI API 키 리스트 불러오기
 keys_json = os.getenv("OPENAI_API_KEYS")
 if not keys_json:
     raise Exception("환경변수 OPENAI_API_KEYS가 설정되지 않았습니다!")
@@ -35,7 +35,7 @@ if not voice_id:
 
 eleven_client = ElevenLabs(api_key=elevenlabs_api_key)
 
-# 🧠 GPT로 스크립트 생성
+# 🧠 GPT 스크립트 생성
 def generate_script():
     client = get_openai_client()
     prompt = "사람들이 놀랄 만한 흥미로운 사실을 30초 분량의 유튜브 Shorts 스타일로 알려줘."
@@ -46,7 +46,7 @@ def generate_script():
     )
     return response.choices[0].message.content.strip()
 
-# 🔊 ElevenLabs로 음성 생성
+# 🔊 음성 생성
 def generate_voice(text):
     audio = eleven_client.generate(
         text=text,
@@ -59,12 +59,12 @@ def generate_voice(text):
         f.write(audio)
     print("▶ 음성 생성 완료 (output/audio.mp3)")
 
-# 🎞️ 영상 생성 (배경 + 음성)
+# 🎞️ 영상 생성
 def generate_video():
     audio = AudioFileClip("output/audio.mp3")
     video = ColorClip(size=(1080, 1920), color=(0, 0, 0), duration=audio.duration)
     video = video.set_audio(audio)
-    video.write_videofile("output/final_video.mp4", fps=24)
+    video.write_videofile("output/final_video.mp4", fps=24, codec='libx264')
     print("▶ 영상 생성 완료 (output/final_video.mp4)")
 
 # 📤 유튜브 업로드
