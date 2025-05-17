@@ -1,43 +1,43 @@
 import os
-import google_auth_oauthlib.flow
-import googleapiclient.discovery
-import googleapiclient.errors
+import pickle
+import argparse
+from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-scopes = ["https://www.googleapis.com/auth/youtube.upload"]
-
 def main():
-    # OAuth 인증
-    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-        "scripts/client_secrets.json", scopes)
-    credentials = flow.run_local_server(port=0)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', required=True, help='업로드할 비디오 파일 경로')
+    parser.add_argument('--title', required=True, help='비디오 제목')
+    parser.add_argument('--description', required=True, help='비디오 설명')
+    parser.add_argument('--category', default='22', help='비디오 카테고리 ID')
+    parser.add_argument('--keywords', default='', help='비디오 태그 (쉼표로 구분)')
+    parser.add_argument('--privacy_status', default='public', help='비디오 공개 상태')
+    args = parser.parse_args()
 
-    youtube = googleapiclient.discovery.build(
-        "youtube", "v3", credentials=credentials)
+    # 토큰 로드
+    with open("token.pickle", "rb") as token_file:
+        credentials = pickle.load(token_file)
 
-    # 업로드할 동영상 파일 경로
-    video_file = "video.mp4"
+    youtube = build("youtube", "v3", credentials=credentials)
 
-    # 동영상 메타데이터 설정
     request_body = {
         "snippet": {
-            "categoryId": "22",
-            "title": "자동 업로드 테스트",
-            "description": "이것은 자동 업로드 테스트입니다.",
-            "tags": ["자동", "업로드", "테스트"]
+            "categoryId": args.category,
+            "title": args.title,
+            "description": args.description,
+            "tags": args.keywords.split(",") if args.keywords else []
         },
         "status": {
-            "privacyStatus": "public"
+            "privacyStatus": args.privacy_status
         }
     }
 
-    mediaFile = MediaFileUpload(video_file, chunksize=-1, resumable=True)
+    media_file = MediaFileUpload(args.file, chunksize=-1, resumable=True)
 
-    # 동영상 업로드 요청
     request = youtube.videos().insert(
         part="snippet,status",
         body=request_body,
-        media_body=mediaFile
+        media_body=media_file
     )
 
     response = request.execute()
