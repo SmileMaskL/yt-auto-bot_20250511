@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 import datetime
 
 # 🔑 API 키 설정
-openai.api_key = os.getenv("OPENAI_API_KEY")
+openai.api_keys = os.getenv("OPENAI_API_KEYS")
 set_api_key(os.getenv("ELEVENLABS_API_KEY"))
 
 # 📜 1. 콘텐츠 생성 (ChatGPT)
