@@ -1,7 +1,7 @@
 openai>=1.0.0
 requests
 ffmpeg-python
-moviepy
+moviepy==1.0.3
 imageio
 imageio-ffmpeg
 Pillow
