@@ -1,8 +1,14 @@
 openai>=1.0.0
 requests
 ffmpeg-python
+moviepy
+imageio
+imageio-ffmpeg
+Pillow
+tqdm
+decorator
+python-dotenv
 elevenlabs
 google-api-python-client
 google-auth
 google-auth-oauthlib
-moviepy
