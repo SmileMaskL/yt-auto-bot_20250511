@@ -175,3 +175,4 @@ cython_debug/
 .pypirc
 
 token.json
+client_secrets.json
