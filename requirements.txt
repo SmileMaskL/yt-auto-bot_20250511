@@ -1,13 +1,7 @@
-# ✅ requirements.txt (필수 설치 패키지)
-google-auth
-google-auth-oauthlib
-google-auth-httplib2
-google-api-python-client
 openai
 requests
-moviepy
-Pillow
-translate
-python-dotenv
-speechrecognition
-srt
+ffmpeg-python
+elevenlabs
+google-api-python-client
+google-auth
+google-auth-oauthlib
