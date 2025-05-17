@@ -29,11 +29,15 @@ jobs:
           pip install -r requirements.txt
 
       - name: GCP 키 파일 생성
-        run: echo "${{ secrets.GOOGLE_APPLICATION_CREDENTIALS_JSON }}" > gcp_key.json
+        run: |
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_BASE64 }}" | base64 -d > gcp_key.json
+        env:
+          GCP_SERVICE_ACCOUNT_BASE64: ${{ secrets.GCP_SERVICE_ACCOUNT_BASE64 }}
 
       - name: 콘텐츠 생성 및 유튜브 업로드
         env:
           OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
+          GCP_KEY_PATH: gcp_key.json
         run: python scripts/content_generator.py
