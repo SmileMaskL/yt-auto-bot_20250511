@@ -3,7 +3,7 @@ name: YouTube Auto Upload
 on:
   schedule:
     - cron: '0 0 * * *'  # 매일 0시에 실행
-  workflow_dispatch:  # 수동 실행도 가능
+  workflow_dispatch:     # 수동 실행도 가능
 
 jobs:
   build:
@@ -25,7 +25,7 @@ jobs:
 
     - name: client_secrets.json 복원
       run: |
-        echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" | base64 --decode > client_secrets.json
+        echo "${{ secrets.GOOGLE_CLIENT_SECRET_JSON }}" | base64 --decode > scripts/client_secrets.json
 
     - name: 유튜브 업로드 스크립트 실행
       run: |
@@ -40,3 +40,6 @@ jobs:
         GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
         GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+
+    - name: 완료 메시지
+      run: echo "✅ 유튜브 업로드 완료!"
