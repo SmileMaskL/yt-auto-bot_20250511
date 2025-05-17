@@ -9,7 +9,7 @@ scopes = ["https://www.googleapis.com/auth/youtube.upload"]
 def main():
     # OAuth 인증
     flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-        "client_secrets.json", scopes)
+        "scripts/client_secrets.json", scopes)
     credentials = flow.run_local_server(port=0)
 
     youtube = googleapiclient.discovery.build(
