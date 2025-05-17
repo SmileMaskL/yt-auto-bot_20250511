@@ -10,34 +10,40 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 코드 가져오기
+      - name: 📦 코드 체크아웃
         uses: actions/checkout@v3
 
-      - name: Python 설치
+      - name: 🐍 Python 3.9 설치
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
 
-      - name: 시스템 도구 설치 (ffmpeg)
+      - name: 🔧 시스템 의존성 설치 (ffmpeg)
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
 
-      - name: Python 패키지 설치
+      - name: 📥 Python 패키지 설치 및 확인
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+          pip install moviepy  # 명시적 설치 (중복 가능)
+          echo "✅ 설치된 패키지 목록:"
+          pip list
+        shell: bash
 
-      - name: GCP 키 파일 생성
+      - name: 🔑 GCP 키 파일 생성
         run: |
           echo "${{ secrets.GCP_SERVICE_ACCOUNT_BASE64 }}" | base64 -d > gcp_key.json
         env:
           GCP_SERVICE_ACCOUNT_BASE64: ${{ secrets.GCP_SERVICE_ACCOUNT_BASE64 }}
 
-      - name: 유튜브 Shorts 자동 생성 및 업로드
+      - name: 🚀 유튜브 Shorts 자동 생성 및 업로드
         env:
           OPENAI_API_KEYS: ${{ secrets.OPENAI_API_KEYS }}
           ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
           ELEVENLABS_VOICE_ID: ${{ secrets.ELEVENLABS_VOICE_ID }}
           GCP_KEY_PATH: gcp_key.json
-        run: python scripts/content_generator.py
+        run: |
+          echo "▶️ Python 스크립트 실행 시작"
+          python scripts/content_generator.py
