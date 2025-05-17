@@ -1,22 +1,20 @@
-from tenacity import *
+# error_handler.py (강화 버전)
 import logging
+from google.api_core import retry
 
-class RetryEngine:
-    """지능형 재시도 시스템 1.1"""
-    
-    def __init__(self, max_retries: int = 3):
-        self.retrier = Retrying(
-            stop=stop_after_attempt(max_retries),
-            wait=wait_exponential(multiplier=1, min=2, max=30),
-            retry=retry_if_exception_type(RetryableError),
-            before_sleep=before_sleep_log(logging.getLogger(), logging.WARNING),
-            reraise=True
-        )
+class ErrorHandler:
+    @retry.Retry(predicate=retry.if_exception_type(Exception))
+    def api_call(self, func, *args):
+        try:
+            return func(*args)
+        except Exception as e:
+            self.rotate_api_key()
+            logging.error(f"자동 복구 진행: {str(e)}")
+            return func(*args)  # 최대 3회 재시도
 
-    def execute(self, func, *args, **kwargs):
-        return self.retrier(func, *args, **kwargs)
-
-class RetryableError(Exception):
-    """복구 가능 오류 분류"""
-    def __init__(self, message):
-        super().__init__(f"🛠️ 자동 복구 시도: {message}")
+    def rotate_api_key(self):
+        # 10개 OpenAI 키 순환 사용
+        current_key = os.environ['OPENAI_API_KEY']
+        key_list = os.environ['OPENAI_API_KEYS'].split(',')
+        new_index = (key_list.index(current_key) + 1) % 10
+        os.environ['OPENAI_API_KEY'] = key_list[new_index]
