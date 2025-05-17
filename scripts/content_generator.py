@@ -15,7 +15,7 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 from google.oauth2.service_account import Credentials
 
-# 🔐 환경 변수 로드
+# ✅ 환경 변수 로드 및 확인
 load_dotenv()
 os.makedirs("output", exist_ok=True)
 
@@ -30,6 +30,7 @@ for var in REQUIRED_ENV:
     if not os.getenv(var):
         raise Exception(f"{var} 환경변수가 설정되지 않았습니다!")
 
+# ✅ OpenAI 클라이언트 매니저
 class OpenAIClientManager:
     def __init__(self):
         self.keys = json.loads(os.getenv("OPENAI_API_KEYS"))
@@ -38,6 +39,7 @@ class OpenAIClientManager:
         print(f"🔑 사용중인 OpenAI 키: {key[:8]}****")
         return OpenAI(api_key=key)
 
+# ✅ 콘텐츠 생성기
 class ContentGenerator:
     def __init__(self):
         self.oaic_manager = OpenAIClientManager()
@@ -75,7 +77,7 @@ class ContentGenerator:
         )
         with open(audio_path, "wb") as f:
             f.write(audio)
-        print(f"🔊 음성 파일 저장 완료: {audio_path}")
+        print(f"🔊 음성 저장 완료: {audio_path}")
         return audio_path
 
     def create_subtitles(self, text, duration):
@@ -105,8 +107,10 @@ class ContentGenerator:
 
         final = CompositeVideoClip([background, subtitles.set_position(('center', 'bottom'))])
         final.write_videofile("output/final_video.mp4", fps=24, codec='libx264')
-        print("🎥 영상 생성 완료")
+        print("🎬 영상 생성 완료")
+        return "output/final_video.mp4"
 
+# ✅ 유튜브 업로더
 class YouTubeUploader:
     def __init__(self):
         self.credentials = Credentials.from_service_account_file(
@@ -119,7 +123,7 @@ class YouTubeUploader:
         request_body = {
             'snippet': {
                 'title': f"AI Shorts - {datetime.datetime.now().strftime('%Y-%m-%d')}",
-                'description': "AI가 자동으로 생성한 유튜브 Shorts입니다.\n#shorts #AI #자동화",
+                'description': "AI가 만든 유튜브 Shorts입니다. 매일 자동 생성됩니다.\n#shorts #AI #자동화",
                 'categoryId': '27',
                 'tags': ['shorts', 'AI', '자동화']
             },
@@ -142,24 +146,26 @@ class YouTubeUploader:
         print(f"✅ 업로드 완료! 영상 ID: {response['id']}")
         return response['id']
 
+# ✅ 실행 시작
 if __name__ == "__main__":
     print("🚀 자동 유튜브 Shorts 생성 시작")
     gen = ContentGenerator()
     uploader = YouTubeUploader()
+
     try:
         print("📝 스크립트 생성 중...")
         script = gen.generate_script()
-        print(f"✔ 생성된 스크립트:\n{script}\n")
+        print(f"✔ 스크립트:\n{script}")
 
-        print("🎤 음성 생성 중...")
+        print("🎧 음성 생성 중...")
         audio = gen.generate_voice(script)
 
-        print("📽 영상 생성 중...")
-        gen.generate_video(audio, script)
+        print("📹 영상 생성 중...")
+        video_path = gen.generate_video(audio, script)
 
         print("☁ 유튜브 업로드 중...")
-        video_id = uploader.upload("output/final_video.mp4")
-        print(f"🎉 완료! 영상: https://youtube.com/shorts/{video_id}")
+        video_id = uploader.upload(video_path)
+        print(f"🎉 완료! 영상 링크: https://youtube.com/shorts/{video_id}")
 
     except Exception as e:
         print(f"❌ 오류 발생: {e}")
