@@ -1,56 +1,47 @@
 import os
-import pickle
-import argparse
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+import googleapiclient.errors
 from googleapiclient.http import MediaFileUpload
 
-# 인증 및 서비스 객체 생성
-def get_authenticated_service():
-    credentials = None
-    if os.path.exists("token.pickle"):
-        with open("token.pickle", "rb") as token:
-            credentials = pickle.load(token)
-    if not credentials or not credentials.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(
-            "client_secrets.json",
-            scopes=["https://www.googleapis.com/auth/youtube.upload"]
-        )
-        credentials = flow.run_console()
-        with open("token.pickle", "wb") as token:
-            pickle.dump(credentials, token)
-    return build("youtube", "v3", credentials=credentials)
+scopes = ["https://www.googleapis.com/auth/youtube.upload"]
 
-# 동영상 업로드 함수
-def upload_video(file, title, description, category, keywords, privacy_status):
-    youtube = get_authenticated_service()
+def main():
+    # OAuth 인증
+    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+        "client_secrets.json", scopes)
+    credentials = flow.run_local_server(port=0)
+
+    youtube = googleapiclient.discovery.build(
+        "youtube", "v3", credentials=credentials)
+
+    # 업로드할 동영상 파일 경로
+    video_file = "video.mp4"
+
+    # 동영상 메타데이터 설정
     request_body = {
         "snippet": {
-            "title": title,
-            "description": description,
-            "tags": keywords.split(","),
-            "categoryId": category
+            "categoryId": "22",
+            "title": "자동 업로드 테스트",
+            "description": "이것은 자동 업로드 테스트입니다.",
+            "tags": ["자동", "업로드", "테스트"]
         },
         "status": {
-            "privacyStatus": privacy_status
+            "privacyStatus": "public"
         }
     }
-    media_file = MediaFileUpload(file)
-    response = youtube.videos().insert(
+
+    mediaFile = MediaFileUpload(video_file, chunksize=-1, resumable=True)
+
+    # 동영상 업로드 요청
+    request = youtube.videos().insert(
         part="snippet,status",
         body=request_body,
-        media_body=media_file
-    ).execute()
-    print(f"동영상이 업로드되었습니다: https://www.youtube.com/watch?v={response['id']}")
+        media_body=mediaFile
+    )
 
-# 명령줄 인자 처리
+    response = request.execute()
+    print(f"동영상 업로드 완료: https://www.youtube.com/watch?v={response['id']}")
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--file", required=True, help="업로드할 동영상 파일 경로")
-    parser.add_argument("--title", required=True, help="동영상 제목")
-    parser.add_argument("--description", required=True, help="동영상 설명")
-    parser.add_argument("--category", default="22", help="동영상 카테고리 ID")
-    parser.add_argument("--keywords", default="", help="쉼표로 구분된 키워드 목록")
-    parser.add_argument("--privacy_status", default="private", choices=["public", "private", "unlisted"], help="공개 상태")
-    args = parser.parse_args()
-    upload_video(args.file, args.title, args.description, args.category, args.keywords, args.privacy_status)
+    main()
