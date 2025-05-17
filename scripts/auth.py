@@ -1,16 +1,12 @@
-import os
-import json
-import base64
+# auth.py 수정 (GCP 인증 강화)
+from google.oauth2 import service_account
+import base64, os
 
-def save_gcp_credentials_from_env():
-    encoded_json = os.getenv("GCP_SERVICE_ACCOUNT_BASE64")
-    if not encoded_json:
-        raise EnvironmentError("환경변수 GCP_SERVICE_ACCOUNT_BASE64가 설정되지 않았습니다.")
-    
-    decoded_json = base64.b64decode(encoded_json).decode("utf-8")
-    credential_path = "/tmp/gcp_service_account.json"
-    
-    with open(credential_path, "w") as f:
-        f.write(decoded_json)
-
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = credential_path
+def gcp_authenticate():
+    # GitHub Secrets에서 인증정보 로드
+    creds_json = base64.b64decode(os.environ['GCP_SERVICE_ACCOUNT_BASE64']).decode()
+    credentials = service_account.Credentials.from_service_account_info(
+        eval(creds_json),
+        scopes=['https://www.googleapis.com/auth/youtube.upload']
+    )
+    return credentials
